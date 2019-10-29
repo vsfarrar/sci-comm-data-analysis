@@ -1,0 +1,74 @@
+---
+title: "Science Communication Survey Data"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv")
+
+#sample size in discussion sections
+sc %>%
+  group_by(group,begin_survey_complete, final_survey_complete) %>%
+  summarize(n=n()) #sample size per group
+```
+```{r}
+#create "scicomm score" for how much students identify with science communication (overall score for Q2)
+sc$scicomm_score_begin<-sum(sc[33:45], na.rm = TRUE)
+sc$scicomm_score_begin
+
+sc<-sc %>%
+   replace(is.na(.), 0) %>% #change to 0 for ease of math 
+   mutate(scicomm_score_begin = rowSums(.[33:45])) #adds up all scicomm questions 
+
+sc<-sc %>%
+   replace(is.na(.), 0) %>% #change to 0 for ease of math 
+   mutate(scicomm_score_final = rowSums(.[66:88])) #adds up all scicomm questions 
+
+sc[sc == 0] <- NA #get 0s back to NA
+
+sc$scicomm_score_change<-sc$scicomm_score_final-sc$scicomm_score_begin #calculate change score for individuals
+sc$scicomm_score_change
+
+sum(!is.na(sc$scicomm_score_change)) #sanity check: sample size of those with individual change data is 47. 
+
+#science communication overall score change 
+sc %>%
+  group_by(group) %>%
+  summarize(avg_before = mean(scicomm_score_begin, na.rm=TRUE), sd_before = sd(scicomm_score_begin,na.rm=TRUE), 
+            avg_after = mean(scicomm_score_final,na.rm=TRUE), sd_after = sd(scicomm_score_final,na.rm=TRUE), avg_indiv_change = mean(scicomm_score_change, na.rm=TRUE))
+
+```
+```{r}
+#create an "attitudes score"
+#because the "lonely" question is a negative one, I change the sign so a higher answer there lowers the score overall.
+sc$lonely_begin<- -(sc$lonely_begin)
+sc$lonely_final<- -(sc$lonely_final)
+
+sc<-sc %>%
+   replace(is.na(.), 0) %>% #change to 0 for ease of math 
+   mutate(attitude_score_begin = rowSums(.[46:51])) #adds up all scicomm questions 
+
+sc<-sc %>%
+   replace(is.na(.), 0) %>% #change to 0 for ease of math 
+   mutate(attitude_score_final = rowSums(.[89:94])) #adds up all scicomm questions 
+
+sc[sc == 0] <- NA #get 0s back to NA
+
+sc$attitude_score_change<-sc$attitude_score_final-sc$attitude_score_begin #calculate change score for individuals
+
+#attitudes before and after activity 
+sc %>%
+  group_by(group) %>%
+  summarize(avg_before = mean(attitude_score_begin, na.rm=TRUE), sd_before = sd(attitude_score_begin,na.rm=TRUE), 
+            avg_after = mean(attitude_score_final,na.rm=TRUE), sd_after = sd(attitude_score_final,na.rm=TRUE), avg_indiv_change = mean(attitude_score_change, na.rm=TRUE))
+
+```
+```{r}
+sc_long<-gather(sc, question, value, final:attitude_score_change) #hacky long attempt
+#keep thinking of other ways to graph data. Could filter data and then do a long transformation with gather 
+ggplot(data=sc, aes(x=group, y= scicomm_score_final)) + 
+  geom_boxplot() + 
+  geom_point(position = position_jitter())
+```
+

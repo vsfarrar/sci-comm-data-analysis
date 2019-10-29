@@ -4,4 +4,71 @@ output: html_notebook
 ---
 ```{r}
 library(tidyverse)
+fin<-read.csv("~/Desktop/data/scicomm_final_survey_numeric.csv")
+begin<-read.csv("~/Desktop/data/scicomm_initial_survey.csv")
+grades<-read.csv("~/Desktop/data/scicomm_course_grades.csv")
+groups<-read.csv("~/Desktop/data/scicomm_group_assgn.csv")
+```
+
+```{r}
+students<-left_join(groups,grades, by = "id")
+students$group<-as.factor(students$group)
+students$grade_final<-as.numeric(students$grade_final)
+
+students<- students[c(-4, -6,-7,-8,-9,-10,-11,-13,-14)] #clean up students 
+
+#filter any mismatch ids in begin and end survey data
+
+
+
+
+
+students %>%
+  group_by(group) %>%
+  drop_na(grade_final)%>%
+  summarize(n=n(), avg_grade = mean(grade_final), sd = sd(grade_final)) #sample size and average grade
+```
+
+```{r}
+#rename id column to sis_id
+colnames(fin)[11]<-"sis_id" #rename 
+colnames(begin)[11]<-"sis_id" #rename columns
+
+#check if student id entries match in survey data
+fin$id_match <- ifelse(fin$sis_id==fin$sis_id_2,"TRUE","FALSE")
+begin$id_match <-ifelse(begin$sis_id==begin$sis_id_2, "TRUE", "FALSE")
+
+#filter out observations that took less than 3 minutes to take survey or entered a mismatching id
+begin2<-begin %>%
+  filter(duration_sec > 180 & id_match==TRUE) #121 observations
+fin2<-fin %>%
+  filter(duration_sec > 180 & id_match==TRUE) #77 observations
+
+#begin joins 
+
+students$sis_id<-as.factor(students$sis_id)
+begin2$sis_id<-as.factor(begin2$sis_id)
+fin2$sis_id<-as.character(fin2$sis_id)
+test<-left_join(students,begin2, by="sis_id")
+test2<-left_join(test, fin2, by="sis_id")
+
+test2<-test2 %>%
+  filter(full_name.x !="")
+
+colnames(test2)
+colnames(test2)<-str_replace(colnames(test2), "[.]y", "_final")
+colnames(test2)<-str_replace(colnames(test2), "[.]x", "_begin")
+colnames(test2)[1]<-"name"
+colnames(test2)[10]<-"total_grade"
+
+test2$begin_survey_complete<-ifelse(is.na(test2$start_date_begin), "n", "y")
+test2$final_survey_complete<-ifelse(is.na(test2$start_date_final), "n", "y")
+
+#number and perc of students that completed both surveys, per group
+test2 %>%
+  group_by(group,begin_survey_complete, final_survey_complete) %>%
+  summarize(n=n()) #sample size and average grade
+
+write.csv(file="~/Desktop/data/scicomm_data_joined.csv", test2)
+
 ```
