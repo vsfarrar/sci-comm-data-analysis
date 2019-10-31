@@ -1,11 +1,15 @@
 ---
 title: "Science Communication Survey Data"
-subtitle: "Data analyses by Victoria"
-output: html_notebook
+subtitle: Initial data analyses by Victoria
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
 ---
 
-```{r data & setup, include=FALSE}
+```{r data & setup, message=FALSE, warning=FALSE, include=FALSE}
 library(tidyverse)
+library(ggsignif)
 sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv") #import joined file
 
 #import functions for confidence intervals 
@@ -16,30 +20,41 @@ lower_ci <- function(mean, se, n, conf_level = 0.95){
 upper_ci <- function(mean, se, n, conf_level = 0.95){
   upper_ci <- mean + qt(1 - ((1 - conf_level) / 2), n - 1) * se
 }
+
+#ggplot plot design for all plots 
+plot_design<- theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5) )+
+  theme_classic()
 ```
+
+###Sample size: 
+Below is the sample size for the joined data of science communication surveys from spring 2019. 
+This sample size has filtered out any students who took < 3 min (on either survey) or had student IDs that did not match in the survey, making it difficult to join their survey and grade records.   
 
 ```{r sample size, echo=FALSE, message=FALSE, warning=FALSE}
 #sample size in discussion sections
 sc %>%
-  group_by(group,begin_survey_complete, final_survey_complete) %>%
+  group_by(group,surveycomplete_begin, surveycomplete_final) %>%
   summarize(n=n()) #sample size per group
 ```
+###Science communication identity 
+To briefly analyze effects of the treatment (biweekly science communication exercises) on students' identity as science communicators and educators, I created a cumulative score that summed the students' scores from each of the questions included in survey question 2. Each question could be scored 1 - 10, and there were 23 questions, for a maximum score of 230 points. 
 
-```{r scicomm score}
+Here is the breakdown of student scores: 
+```{r scicomm score, echo=FALSE, message=FALSE, warning= FALSE}
 #create "scicomm score" for how much students identify with science communication (overall score for Q2)
 #23 questions total, 10 pts each, max score = 230 pts 
 
 sc<-sc %>%
    replace(is.na(.), 0) %>% #change to 0 for ease of math 
-   mutate(scicomm_score_begin = rowSums(.[23:45])) #adds up all scicomm questions from begin (columns 23 - 45)
+   mutate(scicommscore_begin = rowSums(.[23:45])) #adds up all scicomm questions from begin (columns 23 - 45)
 
 sc<-sc %>%
    replace(is.na(.), 0) %>% #change to 0 for ease of math 
-   mutate(scicomm_score_final = rowSums(.[66:88])) #adds up all scicomm questions from end (columsn 66 - 88)
+   mutate(scicommscore_final = rowSums(.[66:88])) #adds up all scicomm questions from end (columsn 66 - 88)
 
 sc[sc == 0] <- NA #get 0s back to NA
 
-sc$scicomm_score_change<-sc$scicomm_score_final-sc$scicomm_score_begin #calculate change score for individuals w/ pre-post data 
+sc$scicommscore_change<-sc$scicommscore_final-sc$scicommscore_begin #calculate change score for individuals w/ pre-post data 
 
 #sanity check: sample size of those with individual change data is 47.
 ###sum(!is.na(sc$scicomm_score_change))  
@@ -47,54 +62,102 @@ sc$scicomm_score_change<-sc$scicomm_score_final-sc$scicomm_score_begin #calculat
 #science communication overall score change 
 sc %>%
   group_by(group) %>%
-  summarize(avg_before = mean(scicomm_score_begin, na.rm=TRUE), sd_before = sd(scicomm_score_begin,na.rm=TRUE), 
-            avg_after = mean(scicomm_score_final,na.rm=TRUE), sd_after = sd(scicomm_score_final,na.rm=TRUE), avg_indiv_change = mean(scicomm_score_change, na.rm=TRUE), 
-            by_group_diff = avg_after- avg_before)
+  summarize(avg_pre = mean(scicommscore_begin, na.rm=TRUE), sd_pre= sd(scicommscore_begin,na.rm=TRUE), 
+            avg_post = mean(scicommscore_final,na.rm=TRUE), sd_post = sd(scicommscore_final,na.rm=TRUE), avg_indiv_change = mean(scicommscore_change, na.rm=TRUE), 
+            by_group_diff = avg_post- avg_pre)
 
 ```
-```{r}
-#create an "attitudes score"
-#because the "lonely" question is a negative one, I change the sign so a higher answer there lowers the score overall.
+The graph and linear model output below illustrates differences between the groups in pre and post scores. 
+Graphs show means with error bars depicting 95% confidence intervals. 
+There is a trend, but these differences are not significant. 
+
+```{r scicomm score analysis, echo=FALSE, message=FALSE, warning=FALSE}
+#scid dataset = scicomm identity score overall in a small dataset, converted to long form
+#in long form, question will be the question name, survey = begin, final, or change between 
+scid<-sc %>% 
+ select(id, group, final:coursetotal_grade,scientist_begin:tellstory_begin, scientist_final:tellstory_final, scicommscore_begin:scicommscore_change)%>%
+  gather(question, value, final:scicommscore_change)%>%
+  separate(col = question, into = c("question", "survey"), sep = "_") 
+#minor clean up 
+scid$survey<-as.factor(scid$survey) #as factor
+scid$question<-as.factor(scid$question)
+scid$survey<-recode(scid$survey, "grade" = "NA") #gets rid of the "grade" level in survey
+
+
+#scicomm score overall barplot
+scid %>%
+  filter(question=="scicommscore", survey!="change")%>%
+  group_by(group, survey)%>%
+  summarise(smean = mean(value, na.rm = TRUE),
+            ssd = sd(value, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+ggplot( aes(x=as.factor(group), y= as.numeric(smean), fill=survey)) +
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  ylim(0,230)+
+  labs(x="Survey", y="Science communication identity score")+
+  scale_fill_manual(labels = c("Pre", "Post"), values = c("gray", "lightblue"))+
+  ggtitle("Science communication identity (overall score)")+
+  plot_design
+
+lm1<-scid %>%
+  filter(question=="scicommscore", survey!="change")
+
+m1<-lm(value~group*survey, data=lm1)
+summary(m1) #no significant effect of anything  
+```
+
+###Community belongingness score 
+To assess responses to question 3 on the survey, which asked about student attitudes as a sense of belongingness in a community, I created a cumulative score of these 6 questions. Because part 1  "I feel lonely" is negative (sense of belongingness decreases as score increases), I coded this question negatively so that this question's score was substracted from the total score. This gives a maximum total score of 50 for th3 6 questions. 
+Below are the summary statistics for this overall score:  
+```{r attitudes score, echo=FALSE, message=FALSE, warning=FALSE}
+#create an "attitudes score" (max score is 50)
+#because the "lonely" question is a negative one, I change the sign so a higher answer in that question lowers the score overall.
 sc$lonely_begin<- -(sc$lonely_begin)
 sc$lonely_final<- -(sc$lonely_final)
 
 sc<-sc %>%
    replace(is.na(.), 0) %>% #change to 0 for ease of math 
-   mutate(attitude_score_begin = rowSums(.[46:51])) #adds up all scicomm questions 
+   mutate(attitudescore_begin = rowSums(.[46:51])) #adds up all scicomm questions 
 
 sc<-sc %>%
    replace(is.na(.), 0) %>% #change to 0 for ease of math 
-   mutate(attitude_score_final = rowSums(.[89:94])) #adds up all scicomm questions 
+   mutate(attitudescore_final = rowSums(.[89:94])) #adds up all scicomm questions 
 
 sc[sc == 0] <- NA #get 0s back to NA
 
-sc$attitude_score_change<-sc$attitude_score_final-sc$attitude_score_begin #calculate change score for individuals
+sc$attitudescore_change<-sc$attitudescore_final-sc$attitudescore_begin #calculate change score for individuals
 
 #attitudes before and after activity 
 sc %>%
   group_by(group) %>%
-  summarize(avg_before = mean(attitude_score_begin, na.rm=TRUE), sd_before = sd(attitude_score_begin,na.rm=TRUE), 
-            avg_after = mean(attitude_score_final,na.rm=TRUE), sd_after = sd(attitude_score_final,na.rm=TRUE), avg_indiv_change = mean(attitude_score_change, na.rm=TRUE),
-            by_group_diff = avg_after- avg_before)
+  summarize(avg_pre = mean(attitudescore_begin, na.rm=TRUE), sd_pre = sd(attitudescore_begin,na.rm=TRUE), 
+            avg_post = mean(attitudescore_final,na.rm=TRUE), sd_post = sd(attitudescore_final,na.rm=TRUE), avg_indiv_change = mean(attitudescore_change, na.rm=TRUE),
+            by_group_diff = avg_post- avg_pre)
 
 ```
-Check that the two surveys had the same total score available for scicomm identity score 
 
-```{r scicomm score analysis}
-#scid dataset = scicomm identity score overall 
-scid<-sc %>% 
- select(sis_id, group, final:total_grade,scientist_begin:tell_story_begin, scientist_final:tell_story_final, scicomm_score_begin:scicomm_score_change)%>%
-  gather(question, value, final:scicomm_score_change)%>%
-  separate(col = question, into = c("question", "question2","survey"), sep = "_") 
+The graphs below show the community belongingness scores and linear model results between groups. 
+Barplots show means and errorbars show 95% confidence intervals. 
 
-scid$question<-as.factor(scid$question)
-scid %>%
-  filter(question=="scicomm", survey!="change")%>%
-ggplot(aes(x=survey, y= value, fill=group)) + 
-  geom_boxplot() 
+```{r attitude score analysis, echo=FALSE, message=FALSE, warning=FALSE}
+att<-sc %>%
+ select(sisid, group, final:lonely_begin:interested_begin, lonely_final:interested_final, attitudescore_begin:attitudescore_change)%>%
+  gather(question, value, final:attitudescore_change)%>%
+  separate(col = question, into = c("question","survey"), sep = "_") 
 
-scid %>%
-  filter(question=="scicomm", survey!="change")%>%
+#minor cleanup
+att$survey<-as.factor(att$survey)
+att$question<-as.factor(att$question)
+att$value<-as.numeric(att$value)
+att$survey<-recode(att$survey, "grade" = "NA") #get rid of grade level in surveys
+
+#barplot
+att %>%
+  filter(question=="attitudescore", survey!="change")%>%
   group_by(group, survey)%>%
   summarise(smean = mean(value, na.rm = TRUE),
             ssd = sd(value, na.rm = TRUE),
@@ -103,83 +166,109 @@ scid %>%
          lower_ci = lower_ci(smean, se, count),
          upper_ci = upper_ci(smean, se, count)) %>%
 ggplot( aes(x=as.factor(survey), y= as.numeric(smean), fill=group)) +
-  geom_bar(stat="identity", position = position_dodge())+
-  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9))+
-  labs(x="Survey", y="Science communication identity score")
-
-lm1<-scid %>%
-  filter(question=="scicomm", survey!="change")
-
-m1<-lm(value~group*survey, data=lm1)
-summary(m1) #no significant effect of anything  
-```
-
-```{r attitude score analysis}
-att<-sc %>%
- select(sis_id, group, final:lonely_begin:interested_begin, lonely_final:interested_final, attitude_score_begin:attitude_score_change)%>%
-  gather(question, value, final:attitude_score_change)%>%
-  separate(col = question, into = c("question", "question2","survey"), sep = "_") 
-
-att$question<-as.factor(att$question)
-att %>%
-  filter(question=="attitude", survey!="change")%>%
-ggplot(aes(x=survey, y= as.numeric(value), fill=group)) + 
-  geom_boxplot() 
-
-att %>%
-  filter(question=="attitude", survey!="change")%>%
-  group_by(group, survey)%>%
-  summarise(smean = mean(as.numeric(value), na.rm = TRUE),
-            ssd = sd(as.numeric(value), na.rm = TRUE),
-            count = n()) %>%
-  mutate(se = ssd / sqrt(count),
-         lower_ci = lower_ci(smean, se, count),
-         upper_ci = upper_ci(smean, se, count)) %>%
-ggplot( aes(x=as.factor(survey), y= as.numeric(smean), fill=group)) +
-  geom_bar(stat="identity", position = position_dodge())+
-  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9))+
-  labs(x="Survey", y="Attitude score")
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  ylim(0,50)+
+  geom_signif(comparisons=list(c("begin", "final")), annotations="n.s.", 
+              y_position = 40, tip_length = 0.05, vjust = 0,     color="black", textsize = 5 )+
+  labs(x="Survey", y="Community belongingness score")+
+  scale_x_discrete(labels = c("Pre", "Post"))+
+  scale_fill_manual(values = c("gray", "lightblue"))+
+  ggtitle("Community belongingness (overall score)")+
+  plot_design
 
 lm2<-att %>%
-  filter(question=="attitude", survey!="change")
+  filter(question=="attitudescore", survey!="change")
 
 m2<-lm(value~group*survey, data=lm2)
-summary(m2) #no significant effect of anything 
-```
-questions: data on difference in before and after means for each group (as a group)
-But then compare individual change scores (with sample size data)
-```{r}
-lm3<-scid%>%
-  filter(question== survey=="change")
+summary(m2) #no significant effect of anything
 
+```
+
+###Within-individual differences: 
+Only a subset of students completed both the pre and post science communication surveys.  (See sample size in table below).  Within this subset, I looked at change in scores. There is a significant change in individual science communication identity within students in the treatment group (compared to the control group).  
+
+```{r within individual differences, echo = FALSE }
+
+#sample size of those individuals w/ both survey completed, by group 
 scid%>%
-  filter(question=="scicomm", survey=="change")%>%
+  filter(question=="scicommscore", survey=="change")%>%
   group_by(group)%>%
   drop_na(value)%>%
   summarize(n=n())
 
+#stats
+lm3<-scid%>%
+  filter(question=="scicommscore", survey=="change")
 m3<-lm(value~group, data=lm3)
-summary(m3) 
+summary(m3) #significant effect of treatment on individual change (scicommscore)
 
+#dataset for only students who have both pre and post survey data
+scid_both<-sc %>% 
+ select(sisid, group, final:coursetotal_grade,scientist_begin:tellstory_begin, scientist_final:tellstory_final, scicommscore_begin:scicommscore_change)%>%
+  filter(scicommscore_change != "NA")%>% #subset of students that have both surveys
+  gather(question, value, final:scicommscore_change)%>%
+  separate(col = question, into = c("question","survey"), sep = "_") 
+scid_both$survey<-recode(scid_both$survey, "grade"="NA") #not part of pipe 
 
-scid_both_final<-sc %>% 
- select(sis_id, group, final:total_grade,scientist_begin:tell_story_begin, scientist_final:tell_story_final, scicomm_score_begin:scicomm_score_change)%>%
-  filter(scicomm_score_change != "NA")%>% #subset of students that have both surveys
-  gather(question, value, final:scicomm_score_change)%>%
-  separate(col = question, into = c("question", "question2","survey"), sep = "_")  %>%
-  filter(question== "total")%>%
-  group_by(group)
-
-sc %>% 
- select(sis_id, group, final:total_grade,scientist_begin:tell_story_begin, scientist_final:tell_story_final, scicomm_score_begin:scicomm_score_change)%>%
-  filter(scicomm_score_change != "NA")%>% #subset of students that have both surveys
-  gather(question, value, final:scicomm_score_change)%>%
-  separate(col = question, into = c("question", "question2","survey"), sep = "_")  %>%
-  filter(question== "total")%>%
-  group_by(group) %>% 
-  summarize(mean = mean(value, na.rm=TRUE))
-
-
-summary(lm(value~group, data=scid_both_final))
+#barplot: scicomm score for individual change 
+scid_both %>%
+  filter(question=="scicommscore", survey=="change")%>%
+  group_by(group)%>%
+  mutate(perc = (value/230)*100) %>%
+  summarise(smean = mean(perc, na.rm = TRUE),
+            ssd = sd(perc, na.rm = TRUE),
+            count = length(which(!is.na(value)))) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+ggplot( aes(x=as.factor(group), y= as.numeric(smean), fill=group)) +
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+
+  geom_errorbar(aes(ymax=upper_ci,ymin=smean),position=position_dodge(0.9), width=0.7)+
+  geom_signif(comparisons=list(c("Control", "Treatment")), annotations="p =0.01", 
+              y_position = 25, tip_length = 0.05, vjust = 0,     color="black", textsize = 5 )+
+  geom_text(aes(label = count, y = 1))+
+  ylim(0,30)+
+  labs(x="Group", y="% Change in overall science communication identity score")+
+  #scale_fill_manual(values = c("gray", "lightblue"))+
+  ggtitle("Science communication activities significantly increase individuals' sci-comm identity score")+
+  theme(legend.position = "none")+
+  plot_design
 
 ```
+
+###Grade effects: 
+When grouped into treatment groups, it appears the lecture course grades between the groups are incredibly similar.  
+
+```{r grade effects, echo=FALSE, message=FALSE, warning= FALSE}
+grades<-c("mt1","mt2","mt3","final", "coursetotal")
+
+#summary stats for grade data
+grade_data <- scid%>%
+  filter(question %in% grades)%>%
+  group_by(question, group)%>%
+  summarize(mean_grade = mean(value, na.rm = TRUE), 
+            sd_grade = sd(value, na.rm = TRUE))
+colnames(grade_data)[1]<- "grade"
+grade_data
+
+#barplot of grade data 
+scid%>%
+  filter(question %in% grades)%>%
+  group_by(group, question)%>%
+  summarise(smean = mean(value, na.rm = TRUE),
+            ssd = sd(value, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+ggplot( aes(x=as.factor(question), y= as.numeric(smean), fill=group)) +
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  #ylim(0,230)+
+  labs(x="Grade", y="Grade (in points)")+
+  scale_x_discrete(labels=c("Total Course Grade", "Final Exam", "Midterm 1", "Midterm 2", "Midterm 3"))+
+  scale_fill_manual(values = c("gray", "lightblue"))+
+  ggtitle("Grade differences between treatment groups")+
+  plot_design
+```  
