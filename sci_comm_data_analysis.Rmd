@@ -71,4 +71,11 @@ test2 %>%
 
 write.csv(file="~/Desktop/data/scicomm_data_joined.csv", test2)
 
+colnames(sc)
+colnames(sc)[13]<-"startdate_begin"
+colnames(sc)[56]<-"startdate_final"
+colnames(sc)[14]<-"enddate_begin"
+colnames(sc)[57]<-"enddate_final"
+colnames(sc)[16]<-"ipaddress_begin"
+colnames(sc)[59]<-"ipaddress_final"
 ```

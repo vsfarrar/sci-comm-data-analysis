@@ -1,42 +1,55 @@
 ---
 title: "Science Communication Survey Data"
+subtitle: "Data analyses by Victoria"
 output: html_notebook
 ---
 
-```{r}
+```{r data & setup, include=FALSE}
 library(tidyverse)
-sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv")
+sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv") #import joined file
 
+#import functions for confidence intervals 
+#functions from: https://community.rstudio.com/t/computing-confidence-intervals-with-dplyr/31868
+lower_ci <- function(mean, se, n, conf_level = 0.95){
+  lower_ci <- mean - qt(1 - ((1 - conf_level) / 2), n - 1) * se
+}
+upper_ci <- function(mean, se, n, conf_level = 0.95){
+  upper_ci <- mean + qt(1 - ((1 - conf_level) / 2), n - 1) * se
+}
+```
+
+```{r sample size, echo=FALSE, message=FALSE, warning=FALSE}
 #sample size in discussion sections
 sc %>%
   group_by(group,begin_survey_complete, final_survey_complete) %>%
   summarize(n=n()) #sample size per group
 ```
-```{r}
+
+```{r scicomm score}
 #create "scicomm score" for how much students identify with science communication (overall score for Q2)
-sc$scicomm_score_begin<-sum(sc[33:45], na.rm = TRUE)
-sc$scicomm_score_begin
+#23 questions total, 10 pts each, max score = 230 pts 
 
 sc<-sc %>%
    replace(is.na(.), 0) %>% #change to 0 for ease of math 
-   mutate(scicomm_score_begin = rowSums(.[33:45])) #adds up all scicomm questions 
+   mutate(scicomm_score_begin = rowSums(.[23:45])) #adds up all scicomm questions from begin (columns 23 - 45)
 
 sc<-sc %>%
    replace(is.na(.), 0) %>% #change to 0 for ease of math 
-   mutate(scicomm_score_final = rowSums(.[66:88])) #adds up all scicomm questions 
+   mutate(scicomm_score_final = rowSums(.[66:88])) #adds up all scicomm questions from end (columsn 66 - 88)
 
 sc[sc == 0] <- NA #get 0s back to NA
 
-sc$scicomm_score_change<-sc$scicomm_score_final-sc$scicomm_score_begin #calculate change score for individuals
-sc$scicomm_score_change
+sc$scicomm_score_change<-sc$scicomm_score_final-sc$scicomm_score_begin #calculate change score for individuals w/ pre-post data 
 
-sum(!is.na(sc$scicomm_score_change)) #sanity check: sample size of those with individual change data is 47. 
+#sanity check: sample size of those with individual change data is 47.
+###sum(!is.na(sc$scicomm_score_change))  
 
 #science communication overall score change 
 sc %>%
   group_by(group) %>%
   summarize(avg_before = mean(scicomm_score_begin, na.rm=TRUE), sd_before = sd(scicomm_score_begin,na.rm=TRUE), 
-            avg_after = mean(scicomm_score_final,na.rm=TRUE), sd_after = sd(scicomm_score_final,na.rm=TRUE), avg_indiv_change = mean(scicomm_score_change, na.rm=TRUE))
+            avg_after = mean(scicomm_score_final,na.rm=TRUE), sd_after = sd(scicomm_score_final,na.rm=TRUE), avg_indiv_change = mean(scicomm_score_change, na.rm=TRUE), 
+            by_group_diff = avg_after- avg_before)
 
 ```
 ```{r}
@@ -61,14 +74,112 @@ sc$attitude_score_change<-sc$attitude_score_final-sc$attitude_score_begin #calcu
 sc %>%
   group_by(group) %>%
   summarize(avg_before = mean(attitude_score_begin, na.rm=TRUE), sd_before = sd(attitude_score_begin,na.rm=TRUE), 
-            avg_after = mean(attitude_score_final,na.rm=TRUE), sd_after = sd(attitude_score_final,na.rm=TRUE), avg_indiv_change = mean(attitude_score_change, na.rm=TRUE))
+            avg_after = mean(attitude_score_final,na.rm=TRUE), sd_after = sd(attitude_score_final,na.rm=TRUE), avg_indiv_change = mean(attitude_score_change, na.rm=TRUE),
+            by_group_diff = avg_after- avg_before)
 
 ```
+Check that the two surveys had the same total score available for scicomm identity score 
+
+```{r scicomm score analysis}
+#scid dataset = scicomm identity score overall 
+scid<-sc %>% 
+ select(sis_id, group, final:total_grade,scientist_begin:tell_story_begin, scientist_final:tell_story_final, scicomm_score_begin:scicomm_score_change)%>%
+  gather(question, value, final:scicomm_score_change)%>%
+  separate(col = question, into = c("question", "question2","survey"), sep = "_") 
+
+scid$question<-as.factor(scid$question)
+scid %>%
+  filter(question=="scicomm", survey!="change")%>%
+ggplot(aes(x=survey, y= value, fill=group)) + 
+  geom_boxplot() 
+
+scid %>%
+  filter(question=="scicomm", survey!="change")%>%
+  group_by(group, survey)%>%
+  summarise(smean = mean(value, na.rm = TRUE),
+            ssd = sd(value, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+ggplot( aes(x=as.factor(survey), y= as.numeric(smean), fill=group)) +
+  geom_bar(stat="identity", position = position_dodge())+
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9))+
+  labs(x="Survey", y="Science communication identity score")
+
+lm1<-scid %>%
+  filter(question=="scicomm", survey!="change")
+
+m1<-lm(value~group*survey, data=lm1)
+summary(m1) #no significant effect of anything  
+```
+
+```{r attitude score analysis}
+att<-sc %>%
+ select(sis_id, group, final:lonely_begin:interested_begin, lonely_final:interested_final, attitude_score_begin:attitude_score_change)%>%
+  gather(question, value, final:attitude_score_change)%>%
+  separate(col = question, into = c("question", "question2","survey"), sep = "_") 
+
+att$question<-as.factor(att$question)
+att %>%
+  filter(question=="attitude", survey!="change")%>%
+ggplot(aes(x=survey, y= as.numeric(value), fill=group)) + 
+  geom_boxplot() 
+
+att %>%
+  filter(question=="attitude", survey!="change")%>%
+  group_by(group, survey)%>%
+  summarise(smean = mean(as.numeric(value), na.rm = TRUE),
+            ssd = sd(as.numeric(value), na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+ggplot( aes(x=as.factor(survey), y= as.numeric(smean), fill=group)) +
+  geom_bar(stat="identity", position = position_dodge())+
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9))+
+  labs(x="Survey", y="Attitude score")
+
+lm2<-att %>%
+  filter(question=="attitude", survey!="change")
+
+m2<-lm(value~group*survey, data=lm2)
+summary(m2) #no significant effect of anything 
+```
+questions: data on difference in before and after means for each group (as a group)
+But then compare individual change scores (with sample size data)
 ```{r}
-sc_long<-gather(sc, question, value, final:attitude_score_change) #hacky long attempt
-#keep thinking of other ways to graph data. Could filter data and then do a long transformation with gather 
-ggplot(data=sc, aes(x=group, y= scicomm_score_final)) + 
-  geom_boxplot() + 
-  geom_point(position = position_jitter())
-```
+lm3<-scid%>%
+  filter(question== survey=="change")
 
+scid%>%
+  filter(question=="scicomm", survey=="change")%>%
+  group_by(group)%>%
+  drop_na(value)%>%
+  summarize(n=n())
+
+m3<-lm(value~group, data=lm3)
+summary(m3) 
+
+
+scid_both_final<-sc %>% 
+ select(sis_id, group, final:total_grade,scientist_begin:tell_story_begin, scientist_final:tell_story_final, scicomm_score_begin:scicomm_score_change)%>%
+  filter(scicomm_score_change != "NA")%>% #subset of students that have both surveys
+  gather(question, value, final:scicomm_score_change)%>%
+  separate(col = question, into = c("question", "question2","survey"), sep = "_")  %>%
+  filter(question== "total")%>%
+  group_by(group)
+
+sc %>% 
+ select(sis_id, group, final:total_grade,scientist_begin:tell_story_begin, scientist_final:tell_story_final, scicomm_score_begin:scicomm_score_change)%>%
+  filter(scicomm_score_change != "NA")%>% #subset of students that have both surveys
+  gather(question, value, final:scicomm_score_change)%>%
+  separate(col = question, into = c("question", "question2","survey"), sep = "_")  %>%
+  filter(question== "total")%>%
+  group_by(group) %>% 
+  summarize(mean = mean(value, na.rm=TRUE))
+
+
+summary(lm(value~group, data=scid_both_final))
+
+```
