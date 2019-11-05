@@ -36,6 +36,6 @@ vignettes/*.pdf
 *.knit.md
 
 #Knit outputs (HTML and pdf) 
-.nb.html
-.html
-.pdf
+*.nb.html
+*.html
+*.pdf
