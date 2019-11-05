@@ -64,6 +64,37 @@ scid %>%
 #returns the same values as the by-hand way, so success! 
 ```
 
+```{r ggplot loop, echo=FALSE, warning = FALSE, message = FALSE}
+#dplyr loop that generates summary statistics and iterates through plots from above levels 
+
+tplots<- scid %>% 
+  filter(survey!="change", question == c("commlay2","tools","importscicomm")) %>%
+  group_by(question, group, survey) %>% 
+  summarise(smean = mean(value, na.rm = TRUE),  #summary statistics for each Q
+            ssd = sd(value, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(question) %>%
+  do(plots=ggplot(data=.) +   #now create a graph FOR EACH of the above questions 
+  aes(x=as.factor(group), y= as.numeric(smean), fill=survey) + 
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  ylim(0,10)+
+  labs(x="Survey", y="Identity score")+
+  scale_fill_manual(labels = c("Pre", "Post"), values = c("gray", "lightblue")) + 
+  ggtitle(unique(.$question)))
+
+tplots$plots #view plots! 
+
+tplots$plots[[1]] + ggtitle("I can communicate physiological concepts to a lay person") + plot_design
+tplots$plots[[2]] + ggtitle("Communicating scientific knowledge to the public \n is an important aspect of being a science student") + plot_design
+tplots$plots[[3]] + ggtitle("I have the tools needed to communicate scientific ideas") + plot_design
+
+```
+
+
 ```{r tidyverse linear models, echo = FALSE, message = FALSE, warning = FALSE }
 #linear models w/ summary statistics using tidyverse broom and dplyr packages
 
@@ -77,61 +108,7 @@ scid %>%
 #returns 5 questions that had an effect of the final survey, but no interaction terms were significant. 
 ```
 
-```{r plots}
-scid%>%
-  filter(question=="commlay2", survey!="change")%>%
-  group_by(group, survey)%>%
-  summarise(smean = mean(value, na.rm = TRUE),
-            ssd = sd(value, na.rm = TRUE),
-            count = n()) %>%
-  mutate(se = ssd / sqrt(count),
-         lower_ci = lower_ci(smean, se, count),
-         upper_ci = upper_ci(smean, se, count)) %>%
-ggplot( aes(x=as.factor(group), y= as.numeric(smean), fill=survey)) +
-  geom_bar(stat="identity", position = position_dodge(), color = "black")+
-  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
-  ylim(0,10)+
-  labs(x="Survey", y="Identity score")+
-  scale_fill_manual(labels = c("Pre", "Post"), values = c("gray", "lightblue"))+
-  ggtitle(" 'I can communicate physiological concepts to a lay person' ")+
-  plot_design
 
-scid%>%
-  filter(question=="tools", survey!="change")%>%
-  group_by(group, survey)%>%
-  summarise(smean = mean(value, na.rm = TRUE),
-            ssd = sd(value, na.rm = TRUE),
-            count = n()) %>%
-  mutate(se = ssd / sqrt(count),
-         lower_ci = lower_ci(smean, se, count),
-         upper_ci = upper_ci(smean, se, count)) %>%
-ggplot( aes(x=as.factor(group), y= as.numeric(smean), fill=survey)) +
-  geom_bar(stat="identity", position = position_dodge(), color = "black")+
-  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
-  ylim(0,10)+
-  labs(x="Survey", y="Identity score")+
-  scale_fill_manual(labels = c("Pre", "Post"), values = c("gray", "lightblue"))+
-  ggtitle(" 'I have the tools needed to communicate scientific ideas' ")+
-  plot_design
-
-scid%>%
-  filter(question=="importscicomm", survey!="change")%>%
-  group_by(group, survey)%>%
-  summarise(smean = mean(value, na.rm = TRUE),
-            ssd = sd(value, na.rm = TRUE),
-            count = n()) %>%
-  mutate(se = ssd / sqrt(count),
-         lower_ci = lower_ci(smean, se, count),
-         upper_ci = upper_ci(smean, se, count)) %>%
-ggplot( aes(x=as.factor(group), y= as.numeric(smean), fill=survey)) +
-  geom_bar(stat="identity", position = position_dodge(), color = "black")+
-  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
-  ylim(0,10)+
-  labs(x="Survey", y="Identity score")+
-  scale_fill_manual(labels = c("Pre", "Post"), values = c("gray", "lightblue"))+
-  ggtitle(" 'Communicating scientific knowledge to the public is an important aspect of being a science student' ")+
-  plot_design
-```
 
 ```{r BY HAND (OLD WAY) t-tests p-values, echo = FALSE, warning = FALSE, message = FALSE}
 #t-test contrasts will be after the class and activity, so using final survey data only for t-tests
@@ -164,4 +141,8 @@ https://stackoverflow.com/questions/35194782/convert-output-from-multiple-t-test
 https://stackoverflow.com/questions/4227223/convert-a-list-to-a-data-frame
 
 https://www.r-bloggers.com/running-a-model-on-separate-groups/
+Read this for understanding pre-post stats on linear models: https://m-clark.github.io/docs/mixedModels/anovamixed.html#between_groups_approach
+http://varianceexplained.org/r/broom-intro/ #where to run do(linear models broom and dpylr)
+
+Plot loops : https://stackoverflow.com/questions/29034863/apply-a-ggplot-function-per-group-with-dplyr-and-set-title-per-group
 
