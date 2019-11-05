@@ -1,8 +1,9 @@
 ---
-title: "Individual Question Analysis"
+title: "Individual Question Analysis: Sci-Comm Identity (Q2 on Survey)"
 output: html_notebook
 ---
 ```{r data setup, message=FALSE, warning=FALSE, include=FALSE}
+library(broom)
 library(tidyverse)
 library(ggsignif)
 sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv") #import joined file
@@ -19,6 +20,9 @@ upper_ci <- function(mean, se, n, conf_level = 0.95){
 #ggplot plot design for all plots 
 plot_design<- theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5) )+
   theme_classic()
+
+#get rid of scientific notation for p-values
+options(scipen=999, digits = 4)
 ```
 
 ```{r scicomm score and long form data, include=FALSE, warning = FALSE, message = FALSE}
@@ -45,32 +49,35 @@ scid$survey<-as.factor(scid$survey) #as factor
 scid$question<-as.factor(scid$question)
 ```
 
-```{r t-tests w/ p values, echo = FALSE, warning = FALSE, message = FALSE}
-#t-test contrasts will be after the class and activity, so using final survey data only for t-tests
-#filter dataset by final survey:
-scid_end<- scid %>%
-  filter(survey == "final")
+```{r t-tests with tidyverse, echo= FALSE, warning = FALSE, message = FALSE}
+#using broom and dplyr to run multiple t-tests using the final survey scores for each question 
+#does final score sig. differ between control and treatment group?
 
-#t-tests compare final survey score by group (treatment or control)
-t_tests_post<-with(scid_end,
-       by(scid_end, question,
-          function(x) t.test(value ~ group, data=x)
-       )
-     )
+scid %>% 
+  filter(survey =="final")%>% #exclude change data for now 
+  nest(-question) %>%  #run model on each level of question
+  mutate(fit = map(data, ~ t.test(value ~ group, data = .)), #t-test formula 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results) %>% 
+  filter(p.value <0.06) #filter results above by those with p less than 0.06
 
-#create a data table with all p-values for t-tests
-pvals_post <- lapply(t_tests_post, function(x) x$p.value) #extracts p-values from the above t-tests list
-pvals_post <- data.frame(matrix(unlist(pvals_post), nrow=length(pvals_post), byrow=T)) #create dataframe 
-pvals_post$question<-as.factor(names(t_tests_post)) #extracts the names of each question in the t-test
-colnames(pvals_post)<- c("pval", "question") #rename columns for interpretability
-pvals_post$pval<-as.numeric(pvals_post$pval)
-pvals_post<-pvals_post[order(pvals_post$pval),] #sorts data frame by p-value in ascending order
-
-pvals_post %>%
-  filter(pval< 0.06) #returns the questiosn that had a pvalue less than 0.06 
+#returns the same values as the by-hand way, so success! 
 ```
 
-```{r}
+```{r tidyverse linear models, echo = FALSE, message = FALSE, warning = FALSE }
+#linear models w/ summary statistics using tidyverse broom and dplyr packages
+
+scid %>% 
+  filter(survey!="change")%>% #exclude score change data for now 
+  group_by(question) %>% 
+  do(tidy(lm(value ~ survey*group, .))) %>% #(end pipe here and you will get all stats for all models)
+  filter(term!="(Intercept)") %>%  #exclude intercept terms as not informative
+  filter(p.value < 0.06) #what has a p-value less than 0.06?
+
+#returns 5 questions that had an effect of the final survey, but no interaction terms were significant. 
+```
+
+```{r plots}
 scid%>%
   filter(question=="commlay2", survey!="change")%>%
   group_by(group, survey)%>%
@@ -125,60 +132,36 @@ ggplot( aes(x=as.factor(group), y= as.numeric(smean), fill=survey)) +
   ggtitle(" 'Communicating scientific knowledge to the public is an important aspect of being a science student' ")+
   plot_design
 ```
-```{r}
-#the following code returns the p-values for each question for a t-test of pre versus post scores for the treatment group
 
-#filter dataset by treatment group only
-scid_trt<- scid %>%
-  filter(group == "Treatment", survey!="change")
+```{r BY HAND (OLD WAY) t-tests p-values, echo = FALSE, warning = FALSE, message = FALSE}
+#t-test contrasts will be after the class and activity, so using final survey data only for t-tests
+#filter dataset by final survey:
+scid_end<- scid %>%
+  filter(survey == "final")
 
 #t-tests compare final survey score by group (treatment or control)
-t_tests_trt<-with(scid_trt,
-       by(scid_trt, question,
-          function(x) t.test(value ~ survey, data=x)
+t_tests_post<-with(scid_end,
+       by(scid_end, question,
+          function(x) t.test(value ~ group, data=x)
        )
      )
 
 #create a data table with all p-values for t-tests
-pvals_trt <- lapply(t_tests_trt, function(x) x$p.value) #extracts p-values from the above t-tests list
-pvals_trt <- data.frame(matrix(unlist(pvals_trt), nrow=length(pvals_trt), byrow=T)) #create dataframe 
-pvals_trt$question<-as.factor(names(t_tests_trt)) #extracts the names of each question in the t-test
-colnames(pvals_trt)<- c("pval", "question") #rename columns for interpretability
-pvals_trt$pval<-as.numeric(pvals_trt$pval)
-pvals_trt<-pvals_trt[order(pvals_trt$pval),] #sorts data frame by p-value in ascending order
+pvals_post <- lapply(t_tests_post, function(x) x$p.value) #extracts p-values from the above t-tests list
+pvals_post <- data.frame(matrix(unlist(pvals_post), nrow=length(pvals_post), byrow=T)) #create dataframe 
+pvals_post$question<-as.factor(names(t_tests_post)) #extracts the names of each question in the t-test
+colnames(pvals_post)<- c("pval", "question") #rename columns for interpretability
+pvals_post$pval<-as.numeric(pvals_post$pval)
+pvals_post<-pvals_post[order(pvals_post$pval),] #sorts data frame by p-value in ascending order
 
-v2<- pvals_trt %>%
+pvals_post %>%
   filter(pval< 0.06) #returns the questiosn that had a pvalue less than 0.06 
 ```
-
-```{r}
-#the following code returns the p-values for each question for a t-test of pre versus post scores for the treatment group
-
-#filter dataset by treatment group only
-scid_cntrl<- scid %>%
-  filter(group == "Control", survey!="change")
-
-#t-tests compare final survey score by group (treatment or control)
-t_tests_cntrl<-with(scid_cntrl,
-       by(scid_cntrl, question,
-          function(x) t.test(value ~ survey, data=x)
-       )
-     )
-
-#create a data table with all p-values for t-tests
-pvals_cntrl <- lapply(t_tests_cntrl, function(x) x$p.value) #extracts p-values from the above t-tests list
-pvals_cntrl <- data.frame(matrix(unlist(pvals_cntrl), nrow=length(pvals_cntrl), byrow=T)) #create dataframe 
-pvals_cntrl$question<-as.factor(names(t_tests_cntrl)) #extracts the names of each question in the t-test
-colnames(pvals_cntrl)<- c("pval", "question") #rename columns for interpretability
-pvals_cntrl$pval<-as.numeric(pvals_cntrl$pval)
-pvals_cntrl<-pvals_cntrl[order(pvals_cntrl$pval),] #sorts data frame by p-value in ascending order
-
-v1<- pvals_cntrl %>%
-  filter(pval< 0.06) #returns the questiosn that had a pvalue less than 0.06 
-```
-
 
 Resources used: 
 https://stackoverflow.com/questions/30332752/how-to-perform-t-tests-for-each-level-of-a-factor-with-tapply
 https://stackoverflow.com/questions/35194782/convert-output-from-multiple-t-tests-to-data-frame
 https://stackoverflow.com/questions/4227223/convert-a-list-to-a-data-frame
+
+https://www.r-bloggers.com/running-a-model-on-separate-groups/
+
