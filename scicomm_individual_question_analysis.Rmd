@@ -1,0 +1,75 @@
+---
+title: "Individual Question Analysis"
+output: html_notebook
+---
+```{r data setup, echo=FALSE, message=FALSE, warning= FALSE}
+library(tidyverse)
+library(ggsignif)
+sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv") #import joined file
+
+#import functions for confidence intervals 
+#functions from: https://community.rstudio.com/t/computing-confidence-intervals-with-dplyr/31868
+lower_ci <- function(mean, se, n, conf_level = 0.95){
+  lower_ci <- mean - qt(1 - ((1 - conf_level) / 2), n - 1) * se
+}
+upper_ci <- function(mean, se, n, conf_level = 0.95){
+  upper_ci <- mean + qt(1 - ((1 - conf_level) / 2), n - 1) * se
+}
+
+#ggplot plot design for all plots 
+plot_design<- theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5) )+
+  theme_classic()
+```
+
+```{r scicomm score and long form data, echo=FALSE, warning = FALSE, message = FALSE}
+#importing code for scicomm score and long form data from other .Rmd file 
+
+#scicomm score 
+sc<-sc %>%
+   replace(is.na(.), 0) %>% #change to 0 for ease of math 
+   mutate(scicommscore_begin = rowSums(.[23:45]), 
+          scicommscore_final = rowSums(.[66:88]), 
+          scicommscore_change = scicommscore_final - scicommscore_begin) 
+sc[sc == 0] <- NA  #return 0 to NA
+
+```
+
+```{r long dataset}
+#scid dataset creation (long form of dataset with scicomm data only)
+scid<-sc %>% 
+ select(id, group, final:coursetotal_grade,scientist_begin:tellstory_begin, scientist_final:tellstory_final, scicommscore_begin:scicommscore_change)%>%
+  gather(question, value, final:scicommscore_change)%>%
+  separate(col = question, into = c("question", "survey"), sep = "_") 
+#minor clean up 
+scid$survey<-as.factor(scid$survey) #as factor
+scid$question<-as.factor(scid$question)
+scid$survey<-recode(scid$survey, "grade" = "NA") #gets rid of the "grade" level in survey
+```
+
+```{r}
+#loop that runs a t-test for each level of question in scid (this is scicomm identity questions only)
+scid_end<- scid %>%
+  filter(survey == "final")
+
+#t-tests will occur on final scores only 
+t_tests_post<-with(scid_end,
+       by(scid_end, question,
+          function(x) t.test(value ~ group, data=x)
+       )
+     )
+
+#create a data table with all p-values for t-tests
+pvals_post <- lapply(t_tests_post, function(x) x$p.value) #extracts p-values from the above t-tests list
+pvals_post <- data.frame(matrix(unlist(pvals_post), nrow=length(pvals_post), byrow=T)) #create dataframe 
+pvals_post$question<-as.factor(names(t_tests_post)) #extracts the names of each question in the t-test
+colnames(pvals_post)<- c("pval", "question") #rename columns for interpretability
+pvals_post$pval<-as.numeric(pvals_post$pval)
+pvals_post<-pvals_post[order(pvals_post$pval),] #sorts data frame by p-value in ascending order
+
+pvals_post %>%
+  filter(pval< 0.06) #returns the questiosn that had a pvalue less than 0.06 
+```
+Resources used: 
+https://stackoverflow.com/questions/30332752/how-to-perform-t-tests-for-each-level-of-a-factor-with-tapply
+https://stackoverflow.com/questions/35194782/convert-output-from-multiple-t-tests-to-data-frame
+https://stackoverflow.com/questions/4227223/convert-a-list-to-a-data-frame
