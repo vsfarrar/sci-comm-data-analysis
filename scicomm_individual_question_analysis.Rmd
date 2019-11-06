@@ -29,7 +29,7 @@ plot_design<- theme(plot.title = element_text(hjust = 0.5), plot.subtitle = elem
 options(scipen=999, digits = 4)
 ```
 
-```{r scicomm score and long form data, include=FALSE, warning = FALSE, message = FALSE}
+```{r scicomm score and long form data, include=FALSE, warning = TRUE, message = TRUE}
 #importing code for scicomm score and long form data from other .Rmd file 
 
 #scicomm score 
@@ -37,7 +37,16 @@ sc<-sc %>%
    replace(is.na(.), 0) %>% #change to 0 for ease of math 
    mutate(scicommscore_begin = rowSums(.[23:45]), 
           scicommscore_final = rowSums(.[66:88]), 
-          scicommscore_change = scicommscore_final - scicommscore_begin) 
+          scicommscore_change = scicommscore_final - scicommscore_begin) %>% #add question groupings 
+   mutate(community_begin = rowSums(select_(.,"impact_begin", "impact2_begin", "convey_begin", "importscicomm_begin")), 
+          community_final = rowSums(select_(.,"impact_final", "impact2_final", "convey_final", "importscicomm_final")), 
+          confidence_begin = rowSums(select_(.,"explanation_begin", "explanation2_begin", "selfconf_begin","tellstory_begin")), 
+          confidence_final = rowSums(select_(.,"explanation_final", "explanation2_final", "selfconf_final","tellstory_final")),
+          identity_begin = rowSums(select_(.,"commpeer_begin", "commlay_begin", "idscicomm_begin", "commpeer2_begin", "commlay2_begin","idphysiocomm_begin")),
+          identity_final = rowSums(select_(.,"commpeer_final", "commlay_final", "idscicomm_final", "commpeer2_final", "commlay2_final","idphysiocomm_final")),
+          toolsable_begin = sum("tools_begin", "accurateinfo_begin", "assessaccuracy_begin"),
+          toolsable_final = sum(tools_final, accurateinfo_final, assessaccuracy_final))
+
 sc[sc == 0] <- NA  #return 0 to NA
 
 ```
@@ -45,8 +54,8 @@ sc[sc == 0] <- NA  #return 0 to NA
 ```{r long dataset, echo = FALSE, warning = FALSE, message = FALSE}
 #scid dataset creation (long form of dataset with scicomm data only)
 scid<-sc %>% 
- select(id, group,scientist_begin:tellstory_begin, scientist_final:tellstory_final, scicommscore_begin:scicommscore_change)%>%
-  gather(question, value, scientist_begin:scicommscore_change)%>%
+ select(id, group,scientist_begin:tellstory_begin, scientist_final:tellstory_final, scicommscore_begin:toolsable_final)%>%
+  gather(question, value, scientist_begin:toolsable_final)%>%
   separate(col = question, into = c("question", "survey"), sep = "_") 
 #minor clean up 
 scid$survey<-as.factor(scid$survey) #as factor
@@ -60,14 +69,16 @@ The following questions returned:
 #using broom and dplyr to run multiple t-tests using the final survey scores for each question 
 #does final score sig. differ between control and treatment group?
 
+qgroupings<-c("community", "confidence", "identity", "toolsable") #qgrouping levels for filtering
+
 scid %>% 
   filter(survey =="final")%>% #exclude change data for now 
+  filter(!(question %in% qgroupings))%>%
   nest(-question) %>%  #run model on each level of question
   mutate(fit = map(data, ~ t.test(value ~ group, data = .)), #t-test formula 
          results = map(fit, glance)) %>% #broom functions
   unnest(results) %>% 
   filter(p.value <0.06) #filter results above by those with p less than 0.06
-
 
 #returns the same values as the by-hand way, so success! 
 ```
@@ -139,10 +150,44 @@ Here, I'll compare cumulative scores across the following question groupings in 
 ```{r Q groupings, echo=FALSE, warning = FALSE, message = FALSE}
 #create vectors of questions within each grouping
 community<-c("impact", "impact2", "convey", "importscicomm")
-confidence<-c("explanation", "explanation2", "selfconfidence","tellstory")
+confidence<-c("explanation", "explanation2", "selfconf","tellstory")
 identity<-c("commpeer", "commlay", "idscicomm", "commpeer2", "commlay2","idphysiocomm")
 toolsable<-c("tools", "accurateinfo", "assessaccuracy")
 
+scid$qgrouping<-ifelse(scid$question %in% community, "community", "NA")
+scid$qgrouping<-ifelse(scid$question %in% confidence, "confidence", scid$qgrouping)
+scid$qgrouping<-ifelse(scid$question %in% identity, "identity", scid$qgrouping)
+scid$qgrouping<-ifelse(scid$question %in% toolsable, "toolsable", scid$qgrouping)
+scid$qgrouping<-as.factor(scid$qgrouping)
+
+#run t-tests for each grouping and return p-values
+scid %>% 
+  filter(survey =="final")%>% #exclude change data for now 
+  filter(question %in% qgroupings)%>%
+  nest(-question) %>%  #run model on each level of question
+  mutate(fit = map(data, ~ t.test(value ~ group, data = .)), #t-test formula 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results) 
+
+qgroup_plots<- scid %>% 
+  filter(survey!="change") %>%
+  group_by(qgrouping, group, survey) %>% 
+  summarise(smean = mean(value, na.rm = TRUE),  #summary statistics for each Q
+            ssd = sd(value, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(qgrouping) %>%
+  do(plots=ggplot(data=.) +   #now create a graph FOR EACH of the above questions 
+  aes(x=as.factor(group), y= as.numeric(smean), fill=survey) + 
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  labs(x="Survey", y="Identity score")+
+  scale_fill_manual(labels = c("Pre", "Post"), values = c("gray", "lightblue")) + 
+  ggtitle(unique(.$qgrouping)))
+
+qgroup_plots$plots
 ```
 
 ###Linear models: 
@@ -198,4 +243,7 @@ Read this for understanding pre-post stats on linear models: https://m-clark.git
 http://varianceexplained.org/r/broom-intro/ #where to run do(linear models broom and dpylr)
 
 Plot loops : https://stackoverflow.com/questions/29034863/apply-a-ggplot-function-per-group-with-dplyr-and-set-title-per-group
+
+How to do rowSums in dplyr: https://stackoverflow.com/questions/41895432/mutating-column-in-dplyr-using-rowsums
+
 
