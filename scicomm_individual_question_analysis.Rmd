@@ -1,7 +1,11 @@
 ---
-title: "Individual Question Analysis: Sci-Comm Identity (Q2 on Survey)"
-output: html_notebook
+title: 'Individual Question Analysis: Sci-Comm Identity (Q2 on Survey)'
+output:
+  html_document:
+    df_print: paged
 ---
+Goal: To look at each individual question in survey question 2, where students were asked to express their agreement with science communication identity statements.  
+
 ```{r data setup, message=FALSE, warning=FALSE, include=FALSE}
 library(broom)
 library(tidyverse)
@@ -48,6 +52,9 @@ scid<-sc %>%
 scid$survey<-as.factor(scid$survey) #as factor
 scid$question<-as.factor(scid$question)
 ```
+###T-tests and plots: 
+I ran a basic t-test for each question comparing the mean post-survey scores between the treatment and the control group. I then filtered this set of t-tests for any questions that returned a p-value < 0.06. 
+The following questions returned: 
 
 ```{r t-tests with tidyverse, echo= FALSE, warning = FALSE, message = FALSE}
 #using broom and dplyr to run multiple t-tests using the final survey scores for each question 
@@ -61,8 +68,11 @@ scid %>%
   unnest(results) %>% 
   filter(p.value <0.06) #filter results above by those with p less than 0.06
 
+
 #returns the same values as the by-hand way, so success! 
 ```
+
+Below are graphs showing the means and confidence intervals for these 3 questions: 
 
 ```{r ggplot loop, echo=FALSE, warning = FALSE, message = FALSE}
 #dplyr loop that generates summary statistics and iterates through plots from above levels 
@@ -86,7 +96,7 @@ tplots<- scid %>%
   scale_fill_manual(labels = c("Pre", "Post"), values = c("gray", "lightblue")) + 
   ggtitle(unique(.$question)))
 
-tplots$plots #view plots! 
+#tplots$plots #view plots! 
 
 tplots$plots[[1]] + ggtitle("I can communicate physiological concepts to a lay person") + plot_design
 tplots$plots[[2]] + ggtitle("Communicating scientific knowledge to the public \n is an important aspect of being a science student") + plot_design
@@ -94,6 +104,51 @@ tplots$plots[[3]] + ggtitle("I have the tools needed to communicate scientific i
 
 ```
 
+###Score differences within "question groupings"
+Arik and I talked about assessing the survey score differences across different groupings of questions. 
+Previously, I looked at overall score difference across the entire 2nd question (see previous reports).
+Above, we looked at each question individually, comparing the final survey scores between the control and treatment groups with t-tests. 
+Here, I'll compare cumulative scores across the following question groupings in question 2: _Note:_ Question groupings were assigned _a priori_ before analyses were performed.   
+
+*  __Community Impact__  (max score: 40 pts)  
+    + "I can make an impact in my community with my command of scientific ideas"  
+    + "I can make an impact in my community with my command of physiological ideas"  
+    + "Scientists should be able to convey interesting stories when sharing their research findings"    
+    + "Communicating scientific knowledge to the public is an important aspect of being a science student"  
+
+*  __Science Communication Identity__  (max score: 60 pts)  
+    _May be split into "Science" and "Physiology" communication sub-groups_
+    + "I can communicate scientific concept to another student in my class"  
+    + "I can communicate scientific concept to a lay person"  
+    + "I am a science communicator"    
+    + "I can communicate physiological concepts to another student in my class"    
+    + "I can communicate physiological concepts to a lay person"  
+    + "I am a physiological communicator"  
+    
+*  __Tools and Abilities__  (max score: 30 pts)  
+    + "I have the tools needed to communicate scientific ideas"  
+    + "I know where to find accurate scientific information "  
+    + "I know how to assess the accuracy and validity of scientific information "    
+
+*  __Confidence in Abilities__  (max score: 30 pts)  
+    + "I have self confidence when speaking "  
+    + "I can tell an interesting story when discussing science "  
+    + "My explanations of scientific concepts are clear and concise "   
+    + "My explanations of physiological concepts are clear and concise"
+
+```{r Q groupings, echo=FALSE, warning = FALSE, message = FALSE}
+#create vectors of questions within each grouping
+community<-c("impact", "impact2", "convey", "importscicomm")
+confidence<-c("explanation", "explanation2", "selfconfidence","tellstory")
+identity<-c("commpeer", "commlay", "idscicomm", "commpeer2", "commlay2","idphysiocomm")
+toolsable<-c("tools", "accurateinfo", "assessaccuracy")
+
+```
+
+###Linear models: 
+I also ran basic linear models for each question and filtered any covariates that had an effect that was statistically significant (p < 0.06). 
+Linear model structure: `lm(score ~ survey*group)`.   
+This returned 5 questions that had an effect of the final survey, but no interaction terms were statistically significant.   Need to do some stats readings to understand why this is the case, and if another model may be more appropriate.  
 
 ```{r tidyverse linear models, echo = FALSE, message = FALSE, warning = FALSE }
 #linear models w/ summary statistics using tidyverse broom and dplyr packages
@@ -108,9 +163,7 @@ scid %>%
 #returns 5 questions that had an effect of the final survey, but no interaction terms were significant. 
 ```
 
-
-
-```{r BY HAND (OLD WAY) t-tests p-values, echo = FALSE, warning = FALSE, message = FALSE}
+```{r BY HAND (OLD WAY) t-tests p-values, eval=FALSE, message=FALSE, warning=TRUE, include=FALSE}
 #t-test contrasts will be after the class and activity, so using final survey data only for t-tests
 #filter dataset by final survey:
 scid_end<- scid %>%
