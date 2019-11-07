@@ -44,8 +44,8 @@ sc<-sc %>%
           confidence_final = rowSums(select_(.,"explanation_final", "explanation2_final", "selfconf_final","tellstory_final")),
           identity_begin = rowSums(select_(.,"commpeer_begin", "commlay_begin", "idscicomm_begin", "commpeer2_begin", "commlay2_begin","idphysiocomm_begin")),
           identity_final = rowSums(select_(.,"commpeer_final", "commlay_final", "idscicomm_final", "commpeer2_final", "commlay2_final","idphysiocomm_final")),
-          toolsable_begin = sum("tools_begin", "accurateinfo_begin", "assessaccuracy_begin"),
-          toolsable_final = sum(tools_final, accurateinfo_final, assessaccuracy_final))
+          toolsable_begin = rowSums(select_(.,"tools_begin", "accurateinfo_begin", "assessaccuracy_begin")),
+          toolsable_final = rowSums(select_(.,"tools_final", "accurateinfo_final", "assessaccuracy_final")))
 
 sc[sc == 0] <- NA  #return 0 to NA
 
