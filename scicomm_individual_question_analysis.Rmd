@@ -49,13 +49,20 @@ sc<-sc %>%
 
 sc[sc == 0] <- NA  #return 0 to NA
 
+#further mutates to create a change score for the question groupings
+sc<- sc %>%
+  mutate(community_change = community_final - community_begin, 
+         confidence_change = confidence_final - confidence_begin,
+         identity_change = identity_final - identity_begin,
+         toolsable_change = toolsable_final - toolsable_begin)
+
 ```
 
 ```{r long dataset, echo = FALSE, warning = FALSE, message = FALSE}
 #scid dataset creation (long form of dataset with scicomm data only)
 scid<-sc %>% 
- select(id, group,scientist_begin:tellstory_begin, scientist_final:tellstory_final, scicommscore_begin:toolsable_final)%>%
-  gather(question, value, scientist_begin:toolsable_final)%>%
+ select(id, group,scientist_begin:tellstory_begin, scientist_final:tellstory_final, scicommscore_begin:toolsable_change)%>%
+  gather(question, value, scientist_begin:toolsable_change)%>%
   separate(col = question, into = c("question", "survey"), sep = "_") 
 #minor clean up 
 scid$survey<-as.factor(scid$survey) #as factor
@@ -79,6 +86,7 @@ scid %>%
          results = map(fit, glance)) %>% #broom functions
   unnest(results) %>% 
   filter(p.value <0.06) #filter results above by those with p less than 0.06
+
 
 #returns the same values as the by-hand way, so success! 
 ```
@@ -147,47 +155,76 @@ Here, I'll compare cumulative scores across the following question groupings in 
     + "My explanations of scientific concepts are clear and concise "   
     + "My explanations of physiological concepts are clear and concise"
 
+Interestingly, the t-tests comparing the control group final scores versus the treatment group final survey scores are all non-significant (p > 0.1). Graphs below, however, imply that there may be significant differences between pre and post survey scores in the treatment group for "Confidence in Abilities" and "Science Communication Identity".  
+
+
 ```{r Q groupings, echo=FALSE, warning = FALSE, message = FALSE}
-#create vectors of questions within each grouping
-community<-c("impact", "impact2", "convey", "importscicomm")
-confidence<-c("explanation", "explanation2", "selfconf","tellstory")
-identity<-c("commpeer", "commlay", "idscicomm", "commpeer2", "commlay2","idphysiocomm")
-toolsable<-c("tools", "accurateinfo", "assessaccuracy")
 
-scid$qgrouping<-ifelse(scid$question %in% community, "community", "NA")
-scid$qgrouping<-ifelse(scid$question %in% confidence, "confidence", scid$qgrouping)
-scid$qgrouping<-ifelse(scid$question %in% identity, "identity", scid$qgrouping)
-scid$qgrouping<-ifelse(scid$question %in% toolsable, "toolsable", scid$qgrouping)
-scid$qgrouping<-as.factor(scid$qgrouping)
-
-#run t-tests for each grouping and return p-values
+#t-tests for qgroupings
 scid %>% 
   filter(survey =="final")%>% #exclude change data for now 
   filter(question %in% qgroupings)%>%
   nest(-question) %>%  #run model on each level of question
   mutate(fit = map(data, ~ t.test(value ~ group, data = .)), #t-test formula 
          results = map(fit, glance)) %>% #broom functions
-  unnest(results) 
+  unnest(results)  #no results have a p-value < 0.10
+
 
 qgroup_plots<- scid %>% 
-  filter(survey!="change") %>%
-  group_by(qgrouping, group, survey) %>% 
+  filter(survey!="change") %>% 
+  filter(question %in% qgroupings) %>%
+  group_by(question, group, survey) %>% 
   summarise(smean = mean(value, na.rm = TRUE),  #summary statistics for each Q
             ssd = sd(value, na.rm = TRUE),
             count = n()) %>%
   mutate(se = ssd / sqrt(count),
          lower_ci = lower_ci(smean, se, count),
          upper_ci = upper_ci(smean, se, count)) %>%
-  group_by(qgrouping) %>%
+  group_by(question) %>%
   do(plots=ggplot(data=.) +   #now create a graph FOR EACH of the above questions 
   aes(x=as.factor(group), y= as.numeric(smean), fill=survey) + 
   geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
   geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
   labs(x="Survey", y="Identity score")+
   scale_fill_manual(labels = c("Pre", "Post"), values = c("gray", "lightblue")) + 
-  ggtitle(unique(.$qgrouping)))
+  ggtitle(unique(.$question)))
+
 
 qgroup_plots$plots
+```
+```{r}
+#t-tests by groupings, for students who had both pre and post surveys (within individual changes)
+
+scid %>% 
+  filter(survey =="change")%>% 
+  filter(question %in% qgroupings)%>%
+  nest(-question) %>%  #run model on each level of question
+  mutate(fit = map(data, ~ t.test(value ~ group, data = .)), #t-test formula 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results)  #no results have a p-value < 0.10
+
+#plots of change differences 
+#?? why is community working now in this dataset??
+qgroup_change_plots<- scid %>% 
+  filter(survey=="change") %>% 
+  filter(question %in% qgroupings) %>%
+  group_by(question, group) %>% 
+  summarise(smean = mean(value, na.rm = TRUE),  #summary statistics for each Q
+            ssd = sd(value, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(question) %>%
+  do(plots=ggplot(data=.) +   #now create a graph FOR EACH of the above questions 
+  aes(x=as.factor(group), y= as.numeric(smean), fill = group) + 
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  labs(x="Survey", y="Change in score")+
+  scale_fill_manual(labels = c("Control", "Treatment"), values = c("blue", "orange")) + 
+  ggtitle(unique(.$question)))
+
+qgroup_change_plots$plots
 ```
 
 ###Linear models: 
