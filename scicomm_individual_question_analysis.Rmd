@@ -192,7 +192,7 @@ qgroup_plots<- scid %>%
 
 qgroup_plots$plots
 ```
-```{r}
+```{r qgroupings within-individuals}
 #t-tests by groupings, for students who had both pre and post surveys (within individual changes)
 
 scid %>% 
@@ -225,6 +225,60 @@ qgroup_change_plots<- scid %>%
   ggtitle(unique(.$question)))
 
 qgroup_change_plots$plots
+```
+```{r}
+
+#ISSUE FLAG: there are change scores for students that did not complete both begin and end scores (probably due to 0 and NA coding) so these may be throwing off statistics. 
+
+#subset sc dataset to those that completed both pre and post survey 
+prepost_only <- sc %>%
+  filter(!is.na(startdate_begin)) %>%
+  filter(!is.na(startdate_final))  #sanity check: sample size is 47
+
+students_w_prepost <- prepost_only$id #vector containing ids from above dataset 
+
+#use that list to then filter scid dataset 
+prepost_only <-scid %>%
+  filter(id %in% students_w_prepost) #will overwrite original prepost_only dataset to use 
+
+  geom_line(position=position_dodge(0.9))+
+  geom_point(position=position_dodge(0.9), size=3)
+  
+prepost_change_plots<- scid %>% 
+  filter(survey!="change") %>% 
+  filter(question %in% qgroupings) %>%
+  group_by(question, group, survey) %>% 
+  summarise(smean = mean(value, na.rm = TRUE),  #summary statistics for each Q
+            ssd = sd(value, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(question) %>%
+  do(plots=ggplot(data=.) +   #now create a graph FOR EACH of the above questions 
+  aes(x=as.factor(survey), y= as.numeric(smean), color = group, group = group) + 
+  geom_line(position=position_dodge(0.9))+
+  geom_point(position=position_dodge(0.9), size=3)+
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  labs(x="Survey", y="Score")+
+  scale_fill_manual(labels = c("Control", "Treatment"), values = c("blue", "orange")) + 
+  ggtitle(unique(.$question))) 
+
+prepost_change_plots$plots[[1]] + ggtitle ("Changes in Confidence in SciComm ability", subtitle= "Within-student change") +  theme_bw() 
+
+prepost_change_plots$plots[[2]] + ggtitle ("Changes in Identity as a Science Communicator", subtitle= "Within-student change") + theme_bw() 
+
+prepost_change_plots$plots[[3]] + ggtitle ("Changes in Assessment of SciComm Tools & Abilities", subtitle= "Within-student change") + theme_bw() 
+
+
+#t-tests
+prepost_only %>% 
+  filter(survey =="change")%>% #exclude change data for now 
+  filter(question %in% qgroupings)%>%
+  nest(-question) %>%  #run model on each level of question
+  mutate(fit = map(data, ~ t.test(value ~ group, data = .)), #t-test formula 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results)  #no results have a p-value < 0.10
 ```
 
 ###Linear models: 
