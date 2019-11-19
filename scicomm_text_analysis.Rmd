@@ -1,0 +1,33 @@
+---
+title: "SciComm project: Text Analysis"
+output: html_notebook
+---
+```{r data setup, include=FALSE, message=FALSE, warning=FALSE}
+library(pdftools)
+library(tidyverse)
+library(tidytext)
+
+sc.text<-read.csv("~/Documents/teaching/science_communication_data/raw_data/Science Communication - Group Assignement and responses.csv") #biweekly text reflections into dataframe sc.text
+
+#rename columns 
+colnames(sc.text)<-c("full_name","id", "sis_id","section","group","r1","r2","r3", "r4", "r5") 
+```
+
+```{r data manipulation, echo=FALSE}
+#convert dataframe to long form so all text in one column 
+sc.text<-sc.text %>% 
+ select(id, group,r1:r5)%>%
+  gather(biweekly_period, response, r1:r5)
+
+#merge all responses across all biweekly periods. 
+#create dataframes for control text only , and treatment text only. 
+control.text<- sc.text %>%
+  filter(group =="Control") %>%
+  select(response)
+
+treat.text<-sc.text %>%
+  filter(group == "Treatment") %>%
+  select(response)
+```
+
+
