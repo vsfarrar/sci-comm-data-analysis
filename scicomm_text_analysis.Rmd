@@ -6,10 +6,14 @@ output: html_notebook
 library(pdftools)
 library(tidyverse)
 library(tidytext)
+library(textdata) #for sentiment analysis
+data(stop_words) #loads dataset of stop words from the tidytext package
 
-data(stop_words) #loads dataset of stop words from the tidy-text package
-
+npb_stop_words<-tibble(word=c("assignment", "assignments", "question","questions","biweekly", "worksheets", "worksheet"))
+                       
 sc.text<-read.csv("~/Documents/teaching/science_communication_data/raw_data/Science Communication - Group Assignement and responses.csv", na.strings = c(" ","","NA")) #biweekly text reflections into dataframe sc.text
+
+sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv") #import joined scicomm data file
 
 #rename columns 
 colnames(sc.text)<-c("full_name","id", "sis_id","section","group","r1","r2","r3", "r4", "r5") 
@@ -84,6 +88,67 @@ trt.counts<-trt.words%>%
   count(word, sort=TRUE)
 
 ```
+```{r}
+#final survey comments analysis 
+
+#extract control group comments to a dataframe
+control.comments <- sc %>%
+  filter(group == "Control") %>%
+  select(comments) %>%
+  na.omit()
+
+#extract treatment group final comments
+trt.comments <- sc %>%
+  filter(group == "Treatment") %>%
+  select(comments) %>%
+  na.omit()
+```
+
+```{r control final comments, echo=FALSE}
+#control comments text parsing
+control.comments<-control.comments %>% 
+  filter(comments != " ") %>% 
+  filter(comments != "") %>% #omit rows with just a space that will throw off later
+  mutate(comments = strsplit(as.character(comments), "\n"))
+
+control.comments<- data_frame(line = 1:32, text = control.comments$comments) #formatted by line 
+
+#word frequency list 
+control.comments.words <-control.comments %>%
+  unnest_tokens(word, text) %>% #parse into words 
+  anti_join(stop_words) %>% #remove stop_words
+  anti_join(npb_stop_words) %>% #remove course specific stop_wrods
+  count(word, sort=TRUE) #return words in list of frequency
+
+#wordcloud
+control.comments.words %>% 
+  with(wordcloud(word, n, max.words = 100), size=0.5)
+
+```
+
+```{r treatment final comments, echo=FALSE}
+#control comments text parsing
+trt.comments<-trt.comments %>% 
+  filter(comments != " ") %>% 
+  filter(comments != "") %>% #omit rows with just a space that will throw off later
+  mutate(comments = strsplit(as.character(comments), "\n"))
+
+trt.comments<- data_frame(line = 1:34, text = trt.comments$comments) #formatted by line 
+
+#word frequency list 
+trt.comments.words <-trt.comments %>%
+  unnest_tokens(word, text) %>% #parse into words 
+  anti_join(stop_words) %>% #remove stop_words
+  anti_join(npb_stop_words) %>% #remove course specific stop_wrods
+  count(word, sort=TRUE) #return words in list of frequency
+
+#wordcloud
+trt.comments.words %>% 
+  with(wordcloud(word, n, max.words = 100), size=0.5)
+
+```
+
+
 
 
 ```{r word clouds}
@@ -99,4 +164,17 @@ trt.words %>%
   count(word, sort = TRUE) %>%
   with(wordcloud(word, n, max.words = 100))
 ```
+
+```{r}
+#attempt at sentiment analysis  ###ISSUE: text data needs to be sorted before this. 
+nrcneg <- get_sentiments("nrc") %>%
+  filter(sentiment == "negative")
+
+control.words %>%
+  inner_join(nrcneg) %>%
+  count(word, sort = TRUE)
+
+
+```
+
 
