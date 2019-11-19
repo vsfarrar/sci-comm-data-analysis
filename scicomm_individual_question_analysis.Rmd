@@ -194,6 +194,33 @@ qgroup_plots<- scid %>%
 
 
 qgroup_plots$plots
+
+#graph that has all question groups in one graph 
+#ISSUE: community still does not work in this code 
+
+scid %>% 
+  filter(survey=="final") %>% 
+  filter(question %in% qgroupings) %>%
+  group_by(question, group) %>% 
+  summarise(smean = mean(value, na.rm = TRUE),  #summary statistics for each Q
+            ssd = sd(value, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(question) %>%
+  ggplot(aes(x=as.factor(question), y= as.numeric(smean), fill = group)) + 
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  annotate("text", x = 1, y = 30, label = "n.s.")+ #non-siginifcance labels 
+  annotate("text", x = 2, y = 45, label = "n.s.")+
+  annotate("text", x = 3, y = 25, label = "n.s.")+
+  labs(x="Survey", y="Total score")+
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=40)", "Treatment\n(n=37)"), values = c("grey", "skyblue2"))+ 
+  scale_x_discrete(name="Question Theme", labels=c( "Confidence", "Identity", "Tools & Abilities"))+
+  ggtitle("Differences in Science Identity Final Survey Score Between-Groups")+
+  theme_bw()
+
 ```
 
 ```{r qgroupings within-individuals}
@@ -232,6 +259,8 @@ qgroup_change_plots<- scid %>%
   scale_fill_manual(labels = c("Control", "Treatment"), values = c("blue", "orange")) + 
   ggtitle(unique(.$question)))
 
+#graph with all question groupings in one graph 
+
 scid %>% 
   filter(survey=="change") %>% 
   filter(question %in% qgroupings) %>%
@@ -246,10 +275,15 @@ scid %>%
   ggplot(aes(x=as.factor(question), y= as.numeric(smean), fill = group)) + 
   geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
   geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  geom_segment(aes(x=2.75, y=12, xend=3.25, yend=12))+ #significance bar for community
+  annotate("text", x = 3, y = 12.25, label = "**")+
+  geom_segment(aes(x=3.75, y=6, xend=4.25, yend=6))+ #significance bar for tools
+  annotate("text", x = 4, y = 6.25, label = "**")+
   labs(x="Survey", y="Change in score")+
   scale_fill_manual(name= "Group", labels = c("Control\n(n=25)", "Treatment\n(n=22)"), values = c("skyblue2", "lightgoldenrod"))+ 
   scale_x_discrete(labels=c("Community", "Confidence", "Identity", "Tools & Abilities"))+
-  ggtitle("Changes in Science Identity Score Within-Groups")
+  ggtitle("Changes in Science Identity Score Within-Groups")+
+  theme_bw()
 
 ```
 
