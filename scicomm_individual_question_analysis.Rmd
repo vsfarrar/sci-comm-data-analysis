@@ -232,8 +232,27 @@ qgroup_change_plots<- scid %>%
   scale_fill_manual(labels = c("Control", "Treatment"), values = c("blue", "orange")) + 
   ggtitle(unique(.$question)))
 
-qgroup_change_plots$plots
+scid %>% 
+  filter(survey=="change") %>% 
+  filter(question %in% qgroupings) %>%
+  group_by(question, group) %>% 
+  summarise(smean = mean(value, na.rm = TRUE),  #summary statistics for each Q
+            ssd = sd(value, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(question) %>%
+  ggplot(aes(x=as.factor(question), y= as.numeric(smean), fill = group)) + 
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  labs(x="Survey", y="Change in score")+
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=25)", "Treatment\n(n=22)"), values = c("skyblue2", "lightgoldenrod"))+ 
+  scale_x_discrete(labels=c("Community", "Confidence", "Identity", "Tools & Abilities"))+
+  ggtitle("Changes in Science Identity Score Within-Groups")
+
 ```
+
 ```{r}
 
 #ISSUE FLAG: there are change scores for students that did not complete both begin and end scores (probably due to 0 and NA coding) so these may be throwing off statistics. 
