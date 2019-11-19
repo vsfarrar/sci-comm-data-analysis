@@ -7,10 +7,13 @@ library(pdftools)
 library(tidyverse)
 library(tidytext)
 
-sc.text<-read.csv("~/Documents/teaching/science_communication_data/raw_data/Science Communication - Group Assignement and responses.csv") #biweekly text reflections into dataframe sc.text
+data(stop_words) #loads dataset of stop words from the tidy-text package
+
+sc.text<-read.csv("~/Documents/teaching/science_communication_data/raw_data/Science Communication - Group Assignement and responses.csv", na.strings = c(" ","","NA")) #biweekly text reflections into dataframe sc.text
 
 #rename columns 
 colnames(sc.text)<-c("full_name","id", "sis_id","section","group","r1","r2","r3", "r4", "r5") 
+
 ```
 
 ```{r data manipulation, echo=FALSE}
@@ -22,12 +25,78 @@ sc.text<-sc.text %>%
 #merge all responses across all biweekly periods. 
 #create dataframes for control text only , and treatment text only. 
 control.text<- sc.text %>%
+  na.omit() %>%
   filter(group =="Control") %>%
-  select(response)
+  select(response) %>%
+  mutate_if(is.character, str_trim) #important: gets rid of white space rows 
 
+
+#treatment text dataframe
 treat.text<-sc.text %>%
+  na.omit() %>%
   filter(group == "Treatment") %>%
-  select(response)
+  select(response) %>%
+  mutate_if(is.character, str_trim) #gets rid of any white space rows
 ```
 
+```{r control data text parsing}
+#split text data by each new line (goes from ~400 lines to >2K)
+control.text<-control.text %>% 
+  filter(response != " ") %>% #omit rows with just a space that will throw off later
+  mutate(response = strsplit(as.character(response), "\n")) %>%
+  mutate(response = gsub("[[:digit:]]", "", response)) 
+
+control.text <- data_frame(line = 1:1422, text = control.text$response) #formatted by line 
+
+#by word, using unnest_tokens
+control.words <-control.text %>%
+  unnest_tokens(word, text) 
+
+#remove stop words
+control.words <- control.words %>%
+  anti_join(stop_words) #returns all rows of text that do not match the stop_words dataset 
+
+#sort words by counts (frequency)
+control.counts<-control.words%>%
+  count(word, sort=TRUE)
+
+```
+
+```{r treatment data text parsing}
+#split text data by each new line (goes from ~400 lines to >2K)
+trt.text<-treat.text %>% 
+  filter(response != " ") %>% #omit rows with just a space that will throw off later
+  mutate(response = strsplit(as.character(response), "\n")) %>%
+  mutate(response = gsub("[[:digit:]]", "", response)) 
+
+trt.text <- data_frame(line = 1:437, text = trt.text$response) #formatted by line 
+
+#by word, using unnest_tokens
+trt.words <-trt.text %>%
+  unnest_tokens(word, text) 
+
+#remove stop words
+trt.words <- trt.words %>%
+  anti_join(stop_words) #returns all rows of text that do not match the stop_words dataset 
+
+#sort words by counts (frequency)
+trt.counts<-trt.words%>%
+  count(word, sort=TRUE)
+
+```
+
+
+```{r word clouds}
+library(wordcloud)
+
+control.words %>% 
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) %>%
+  with(wordcloud(word, n, max.words = 100))
+
+trt.words %>% 
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
 
