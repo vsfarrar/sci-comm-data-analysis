@@ -161,14 +161,17 @@ Interestingly, the t-tests comparing the control group final scores versus the t
 ```{r Q groupings, echo=FALSE, warning = FALSE, message = FALSE}
 
 #t-tests for qgroupings
-scid %>% 
+qgroup_across_ttest<- scid %>% 
   filter(survey =="final")%>% #exclude change data for now 
   filter(question %in% qgroupings)%>%
   nest(-question) %>%  #run model on each level of question
   mutate(fit = map(data, ~ t.test(value ~ group, data = .)), #t-test formula 
          results = map(fit, glance)) %>% #broom functions
-  unnest(results)  #no results have a p-value < 0.10
+  unnest(results) %>%  #no results have a p-value < 0.10
+  arrange(p.value) %>% #list results in order of p-value (ascending)
+  select(-data, - fit) #get rid of list variables for writing to csv 
 
+qgroup_across_ttest 
 
 qgroup_plots<- scid %>% 
   filter(survey!="change") %>% 
@@ -192,16 +195,21 @@ qgroup_plots<- scid %>%
 
 qgroup_plots$plots
 ```
+
 ```{r qgroupings within-individuals}
 #t-tests by groupings, for students who had both pre and post surveys (within individual changes)
 
-scid %>% 
+qgroups_within_ttests <- scid %>% 
   filter(survey =="change")%>% 
   filter(question %in% qgroupings)%>%
   nest(-question) %>%  #run model on each level of question
   mutate(fit = map(data, ~ t.test(value ~ group, data = .)), #t-test formula 
          results = map(fit, glance)) %>% #broom functions
-  unnest(results)  #no results have a p-value < 0.10
+  unnest(results) %>%
+  arrange(p.value) %>% #list in ascending order of p-value
+  select(-data, - fit)
+  
+qgroups_within_ttests
 
 #plots of change differences 
 #?? why is community working now in this dataset??
