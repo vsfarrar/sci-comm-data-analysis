@@ -87,8 +87,22 @@ trt.words <- trt.words %>%
 trt.counts<-trt.words%>%
   count(word, sort=TRUE)
 
+
+#bigram analysis (word pairs)
+trt_bigrams <- trt.text %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  separate(bigram, c("word1", "word2"), sep = " ") %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  unite(bigram, word1, word2, sep = " ") %>%
+  count(bigram, sort=TRUE)
+
+#bigram word cloud
+trt_bigrams %>% 
+  with(wordcloud(bigram, n, max.words = 100))
+
 ```
-```{r}
+```{r final survey comments parsing}
 #final survey comments analysis 
 
 #extract control group comments to a dataframe
