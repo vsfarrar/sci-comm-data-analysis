@@ -9,6 +9,8 @@ library(tidytext)
 library(textdata) #for sentiment analysis
 data(stop_words) #loads dataset of stop words from the tidytext package
 
+#stop word datasets for this dataset
+physio_stop_words<-read.csv("~/Desktop/data/physio_stop_words.csv")
 npb_stop_words<-tibble(word=c("assignment", "assignments", "question","questions","biweekly", "worksheets", "worksheet"))
                        
 sc.text<-read.csv("~/Documents/teaching/science_communication_data/raw_data/Science Communication - Group Assignement and responses.csv", na.strings = c(" ","","NA")) #biweekly text reflections into dataframe sc.text
@@ -94,6 +96,8 @@ trt_bigrams <- trt.text %>%
   separate(bigram, c("word1", "word2"), sep = " ") %>%
   filter(!word1 %in% stop_words$word) %>%
   filter(!word2 %in% stop_words$word) %>%
+  filter(!word1 %in% physio_stop_words$word) %>%
+  filter(!word2 %in% physio_stop_words$word) %>%
   unite(bigram, word1, word2, sep = " ") %>%
   count(bigram, sort=TRUE)
 
