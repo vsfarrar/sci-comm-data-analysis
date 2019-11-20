@@ -10,23 +10,12 @@ Goal: To look at each individual question in survey question 2, where students w
 library(broom)
 library(tidyverse)
 library(ggsignif)
-sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv") #import joined file
 
-#import functions for confidence intervals 
-#functions from: https://community.rstudio.com/t/computing-confidence-intervals-with-dplyr/31868
-lower_ci <- function(mean, se, n, conf_level = 0.95){
-  lower_ci <- mean - qt(1 - ((1 - conf_level) / 2), n - 1) * se
-}
-upper_ci <- function(mean, se, n, conf_level = 0.95){
-  upper_ci <- mean + qt(1 - ((1 - conf_level) / 2), n - 1) * se
-}
+#import functions, themes 
+source("~/Documents/teaching/science_communication_data/github/sci-comm-data-analysis/themes_functions_scicomm.R")
 
-#ggplot plot design for all plots 
-plot_design<- theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5) )+
-  theme_classic()
-
-#get rid of scientific notation for p-values
-options(scipen=999, digits = 4)
+#import joined data file
+sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv")  
 ```
 
 ```{r scicomm score and long form data, include=FALSE, warning = TRUE, message = TRUE}
@@ -287,7 +276,7 @@ scid %>%
 
 ```
 
-```{r}
+```{r not sure what this is..., echo=FALSE, message = FALSE, warning = FALSE}
 
 #ISSUE FLAG: there are change scores for students that did not complete both begin and end scores (probably due to 0 and NA coding) so these may be throwing off statistics. 
 
@@ -340,6 +329,64 @@ prepost_only %>%
   mutate(fit = map(data, ~ t.test(value ~ group, data = .)), #t-test formula 
          results = map(fit, glance)) %>% #broom functions
   unnest(results)  #no results have a p-value < 0.10
+```
+
+###Assignment assessment questions. 
+Questions 10 and 12 on the Qualtrics survey.  Each question should range from 1 to 7, 1 being strongly disagree and 7 being strongly agree.  
+
+```{r assignment questions, echo=FALSE, message=FALSE, warning=FALSE}
+#Q10 on the qualtrics survey are coded strangely, need to be scaled to interpretable numbers.
+#Q10 ($assignment) ranges 18 - 24. Subtract 17 to make it range 1 - 7. 
+sc$assignment <- (sc$assignment - 17) 
+
+#Q12 ranges 4 - 10. Subtract 3 to make range 1- 7. 
+sc$future_assgn <- (sc$future_assgn - 3) 
+
+#Q10 summary stats / graph
+sc %>% 
+  na.omit(assignment) %>%
+  group_by(group) %>% 
+  summarise(smean = mean(assignment, na.rm = TRUE),  #summary statistics for assignment
+            ssd = sd(assignment, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(group) %>%
+  ggplot(aes(x=group, y= as.numeric(smean), fill = group)) + 
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  # annotate("text", x = 1, y = 30, label = "n.s.")+ #non-siginifcance labels 
+  # annotate("text", x = 2, y = 45, label = "n.s.")+
+  # annotate("text", x = 3, y = 25, label = "n.s.")+
+  labs(x="Treatment Group", y="Score")+
+  ylim(0,7)+
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=16)", "Treatment\n(n=14)"), values = c("grey", "skyblue2"))+ 
+  ggtitle("The biweekly assignments were beneficial for my learning")+
+  theme_bw()
+
+#Q12 summary stats / graph 
+sc %>% 
+  na.omit(future_assgn) %>%
+  group_by(group) %>% 
+  summarise(smean = mean(future_assgn, na.rm = TRUE),  #summary statistics for assignment
+            ssd = sd(future_assgn, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(group) %>%
+  ggplot(aes(x=group, y= as.numeric(smean), fill = group)) + 
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  # annotate("text", x = 1, y = 30, label = "n.s.")+ #non-siginifcance labels 
+  # annotate("text", x = 2, y = 45, label = "n.s.")+
+  # annotate("text", x = 3, y = 25, label = "n.s.")+
+  labs(x="Treatment Group", y="Score")+
+  ylim(0,7)+
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=16)", "Treatment\n(n=14)"), values = c("grey", "skyblue2"))+ 
+  ggtitle("I would like to have exercises that are similar to the biweekly assignments in other courses")+
+  theme_bw()
 ```
 
 ###Linear models: 
