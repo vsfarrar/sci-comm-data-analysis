@@ -9,9 +9,9 @@ sc<-sc %>%
   replace(is.na(.), 0) %>% #change to 0 for ease of math 
   mutate(scicommscore_begin = rowSums(.[23:45]), 
          scicommscore_final = rowSums(.[66:88]), 
-         scicommscore_change = scicommscore_final - scicommscore_begin) %>% #add question groupings 
-  mutate(community_begin = rowSums(select_(.,"impact_begin", "impact2_begin", "convey_begin", "importscicomm_begin")), 
-         community_final = rowSums(select_(.,"impact_final", "impact2_final", "convey_final", "importscicomm_final")), 
+         scicommscore_change = scicommscore_final - scicommscore_begin) %>% #add question groupings
+mutate(communitysense_begin = rowSums(select_(.,"impact_begin", "impact2_begin", "convey_begin", "importscicomm_begin")), 
+       communitysense_final = rowSums(select_(.,"impact_final", "impact2_final", "convey_final", "importscicomm_final")),
          confidence_begin = rowSums(select_(.,"explanation_begin", "explanation2_begin", "selfconf_begin","tellstory_begin")), 
          confidence_final = rowSums(select_(.,"explanation_final", "explanation2_final", "selfconf_final","tellstory_final")),
          identity_begin = rowSums(select_(.,"commpeer_begin", "commlay_begin", "idscicomm_begin", "commpeer2_begin", "commlay2_begin","idphysiocomm_begin")),
@@ -23,7 +23,7 @@ sc[sc == 0] <- NA  #return 0 to NA
 
 #further mutates to create a change score for the question groupings
 sc<- sc %>%
-  mutate(community_change = community_final - community_begin, 
+  mutate(communitysense_change = communitysense_final - communitysense_begin, 
          confidence_change = confidence_final - confidence_begin,
          identity_change = identity_final - identity_begin,
          toolsable_change = toolsable_final - toolsable_begin)
@@ -37,3 +37,9 @@ scid<-sc %>%
 #minor clean up 
 scid$survey<-as.factor(scid$survey) #as factor
 scid$question<-as.factor(scid$question)
+
+
+#GROUPS DEFINED FOR PROJECT
+
+#science identity question groupings by theme 
+qgroupings<-c("communitysense", "confidence", "identity", "toolsable") #qgrouping levels for filtering

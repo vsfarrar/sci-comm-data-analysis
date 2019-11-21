@@ -4,3 +4,9 @@
 #default plot design
 plot_design<- theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5) )+
   theme_classic()
+
+#labels for qgrouping factors
+qgroup.labels <-c("Community", "Confidence", "Identity", "Tools & Abilities")
+
+#consistent colors for group factors
+group.colors <- c("grey", "skyblue2")
