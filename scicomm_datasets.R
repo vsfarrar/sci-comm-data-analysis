@@ -38,6 +38,17 @@ scid<-sc %>%
 scid$survey<-as.factor(scid$survey) #as factor
 scid$question<-as.factor(scid$question)
 
+#populate percent column for qgroupings in scid. 
+#This is the percent of the total possible score for each question grouping. 
+
+scid <- scid %>%
+mutate(perc = case_when(    #create percentages for each question grouping to increase interpretability
+  question == "communitysense" ~ (value/40),
+  question == "identity"  ~ (value/60), 
+  question == "toolsable" ~ (value/30),
+  question == "confidence" ~ (value/40))) %>%
+  mutate(perc = perc*100)
+
 
 #GROUPS DEFINED FOR PROJECT
 
