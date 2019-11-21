@@ -274,6 +274,26 @@ scid %>%
   ggtitle("Changes in Science Identity Score Within-Groups")+
   theme_bw()
 
+
+#boxplots with individual points 
+scid %>% 
+  filter(survey=="change") %>% 
+  filter(question %in% qgroupings) %>%
+  group_by(question, group) %>% 
+  ggplot(aes(x=as.factor(question), y= value, fill = group)) + 
+  geom_point(aes(color = group), position = position_jitterdodge())+ 
+  geom_boxplot(alpha = 0.3, outlier.shape = NA) + 
+  geom_segment(aes(x=2.75, y=25, xend=3.25, yend=25))+ #significance bar for community
+  annotate("text", x = 3, y = 25.25, label = "**")+
+  geom_segment(aes(x=3.75, y=11, xend=4.25, yend=11))+ #significance bar for tools
+  annotate("text", x = 4, y = 11.25, label = "**")+
+  labs(x="Survey", y="Change in score")+
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=25)", "Treatment\n(n=22)"), values = c(c("grey", "skyblue2")))+ 
+  scale_x_discrete(labels=c("Community", "Confidence", "Identity", "Tools & Abilities"))+
+  scale_color_manual(values = c("grey", "skyblue2"))+
+  ggtitle("Changes in Science Identity Score Within-Groups")+
+  theme_bw()
+
 ```
 
 ```{r not sure what this is..., message=FALSE, warning=, include=FALSE}
