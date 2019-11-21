@@ -1,0 +1,101 @@
+---
+title: "Fig.1 Science Identity Question Groupings Between-Groups"
+output: html_notebook
+---
+```{r data setup}
+library(tidyverse)
+setwd("~/Documents/teaching/science_communication_data/github/sci-comm-data-analysis/") #set working directory
+
+#import data, functions, ggplot themes
+source("scicomm_datasets.R")
+source("scicomm_plot_themes.R")
+source("scicomm_functions.R") 
+```
+```{r between-group plots}
+#Final Survey Scores by Question Groupings BETWEEN-GROUPS 
+
+#barplot of means with confidence intervals, with y axis in percentages 
+scid %>%
+  filter(survey == "final") %>%
+  filter(question %in% qgroupings) %>% #qgroupings from scicomm_datasets.R 
+  group_by(question, group) %>% 
+  summarise(smean = mean(perc, na.rm = TRUE),  #summary statistics for each Q
+            ssd = sd(perc, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(question) %>%
+  ggplot(aes(x=as.factor(question), y= as.numeric(smean), fill = group)) + 
+  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  annotate("text", x = 1, y = 75, label = "n.s.")+ #non-siginifcance labels 
+  annotate("text", x = 2, y = 90, label = "n.s.")+
+  annotate("text", x = 3, y = 75, label = "n.s.")+
+  annotate("text", x = 4, y = 80, label = "n.s.")+
+  ylim(0,100) + 
+  labs(x="Survey", y="Percent of total possible score")+
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=40)", "Treatment\n(n=37)"), values = group.colors)+ 
+  scale_x_discrete(name="Question Theme", labels=qgroup.labels)+
+  ggtitle("Differences in Science Identity Final Survey Score Between-Groups")+
+  plot_design
+    
+  
+#boxplot with individual points for each student, with y axis in percentages 
+
+scid %>%
+  filter(survey == "final") %>%
+  filter(question %in% qgroupings) %>% #qgroupings from scicomm_datasets.R 
+  group_by(question, group) %>%
+  ggplot(aes(x=as.factor(question), y= perc, fill = group)) + 
+  geom_point(aes(color = group), position = position_jitterdodge(), show.legend = F)+ 
+  geom_boxplot(alpha = 0.4, outlier.shape = NA) +
+  labs(x="Survey", y="Percent of total possible score")+
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=40)", "Treatment\n(n=37)"), values = c(c("grey", "skyblue2")))+ 
+  scale_x_discrete(labels=c("Community", "Confidence", "Identity", "Tools & Abilities"))+
+  scale_color_manual(values = group.colors)+
+  ggtitle("Differences in Science Identity Final Survey Score Between-Groups")+
+  plot_design
+
+
+#change pre-post between groups
+scid %>% 
+  filter(survey!="change") %>% 
+  filter(question %in% qgroupings) %>%
+  mutate(survey_by_group = paste0(group, survey)) %>%
+  group_by(question, survey_by_group) %>% 
+  ggplot(aes(x=as.factor(question), y= value, fill = survey_by_group)) + 
+  geom_point(aes(color = group), position = position_jitterdodge())+ 
+  geom_boxplot(alpha = 0.4, outlier.shape = NA) + 
+  # geom_segment(aes(x=2.75, y=25, xend=3.25, yend=25))+ #significance bar for community
+  # annotate("text", x = 3, y = 25.25, label = "**")+
+  # geom_segment(aes(x=3.75, y=11, xend=4.25, yend=11))+ #significance bar for tools
+  # annotate("text", x = 4, y = 11.25, label = "**")+
+  labs(x="Survey", y="Score")+
+  #scale_fill_manual(name= "Group", labels = c("Control\n(n=25)", "Treatment\n(n=22)"), values = c(c("grey", "grey2", "skyblue2", "skyblue3")))+ 
+  #scale_x_discrete(labels=c("Community", "Confidence", "Identity", "Tools & Abilities"))+
+  scale_color_manual(values = c("grey", "skyblue2"))+
+  ggtitle("Comparison of Pre-Post Science Identity Score Between-Groups")+
+  facet_wrap(~group) + 
+  theme_bw()
+
+```
+```{r t-tests}
+#t-tests of final scores between each group for each question grouping 
+#with estimates now in percentages
+
+qgroup_between_ttest<- scid %>% 
+  filter(survey =="final")%>% #exclude change data for now 
+  filter(question %in% qgroupings)%>%
+  nest(-question) %>%  #run model on each level of question
+  mutate(fit = map(data, ~ t.test(perc ~ group, data = .)), #t-test formula 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results) %>%  #no results have a p-value < 0.10
+  arrange(question) %>% #list results in order of p-value (ascending)
+  select(-data, - fit) #get rid of list variables for writing to csv 
+
+qgroup_between_ttest 
+```
+
+
+
