@@ -276,7 +276,7 @@ scid %>%
 
 ```
 
-```{r not sure what this is..., echo=FALSE, message = FALSE, warning = FALSE}
+```{r not sure what this is..., message=FALSE, warning=, include=FALSE}
 
 #ISSUE FLAG: there are change scores for students that did not complete both begin and end scores (probably due to 0 and NA coding) so these may be throwing off statistics. 
 
@@ -342,51 +342,35 @@ sc$assignment <- (sc$assignment - 17)
 #Q12 ranges 4 - 10. Subtract 3 to make range 1- 7. 
 sc$future_assgn <- (sc$future_assgn - 3) 
 
-#Q10 summary stats / graph
-sc %>% 
-  na.omit(assignment) %>%
-  group_by(group) %>% 
-  summarise(smean = mean(assignment, na.rm = TRUE),  #summary statistics for assignment
-            ssd = sd(assignment, na.rm = TRUE),
-            count = n()) %>%
-  mutate(se = ssd / sqrt(count),
-         lower_ci = lower_ci(smean, se, count),
-         upper_ci = upper_ci(smean, se, count)) %>%
-  group_by(group) %>%
-  ggplot(aes(x=group, y= as.numeric(smean), fill = group)) + 
-  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
-  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
-  # annotate("text", x = 1, y = 30, label = "n.s.")+ #non-siginifcance labels 
-  # annotate("text", x = 2, y = 45, label = "n.s.")+
-  # annotate("text", x = 3, y = 25, label = "n.s.")+
-  labs(x="Treatment Group", y="Score")+
-  ylim(0,7)+
-  scale_fill_manual(name= "Group", labels = c("Control\n(n=16)", "Treatment\n(n=14)"), values = c("grey", "skyblue2"))+ 
-  ggtitle("The biweekly assignments were beneficial for my learning")+
+###PLOT
+
+#likert labels for plots 
+
+likert.labels <-c("Strongly Disagree", "Disagree", "Somewhat Disagree", "Neither agree nor disagree", "Somewhat Agree", "Agree", "Strongly Agree" )
+
+#question labels for the facet_wrap labeller function 
+
+q10q12<-c("The biweekly assignments were beneficial for my learning", "I would like to have exercises that are similar to the biweekly assignments in other courses")
+names(q10q12) <- c("assignment","future_assgn")
+
+#Q10 and Q12 in one plot using facet wrap 
+sc %>%
+  select(id, group, assignment, future_assgn) %>%
+  tidyr::pivot_longer(assignment:future_assgn, names_to = "question", values_to = "score") %>%
+  filter(!is.na(score)) %>%
+  mutate(score = as.factor(score)) %>%
+  group_by(group, question, score) %>%
+  summarise(n = n ()) %>%
+  ggplot(aes(x=as.numeric(score), y=n, fill = group )) + 
+  geom_bar(stat = "identity", position = position_dodge(0.9), color = "black")+ 
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=40)", "Treatment\n(n=37)"), values = c("grey", "skyblue2")) + 
+  scale_x_reverse(name = "Likert score", breaks = (7:1), labels = function(x) str_wrap(likert.labels, width = 10))+ 
+  ylab("Count")+
+  facet_wrap(~question, nrow = 2, labeller = labeller(question = q10q12)) + 
   theme_bw()
 
-#Q12 summary stats / graph 
-sc %>% 
-  na.omit(future_assgn) %>%
-  group_by(group) %>% 
-  summarise(smean = mean(future_assgn, na.rm = TRUE),  #summary statistics for assignment
-            ssd = sd(future_assgn, na.rm = TRUE),
-            count = n()) %>%
-  mutate(se = ssd / sqrt(count),
-         lower_ci = lower_ci(smean, se, count),
-         upper_ci = upper_ci(smean, se, count)) %>%
-  group_by(group) %>%
-  ggplot(aes(x=group, y= as.numeric(smean), fill = group)) + 
-  geom_bar(stat="identity", position = position_dodge(), color = "black")+ 
-  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
-  # annotate("text", x = 1, y = 30, label = "n.s.")+ #non-siginifcance labels 
-  # annotate("text", x = 2, y = 45, label = "n.s.")+
-  # annotate("text", x = 3, y = 25, label = "n.s.")+
-  labs(x="Treatment Group", y="Score")+
-  ylim(0,7)+
-  scale_fill_manual(name= "Group", labels = c("Control\n(n=16)", "Treatment\n(n=14)"), values = c("grey", "skyblue2"))+ 
-  ggtitle("I would like to have exercises that are similar to the biweekly assignments in other courses")+
-  theme_bw()
+q10q12<-c("The biweekly assignments were beneficial for my learning", "I would like to have exercises that are similar to the biweekly assignments in other courses")
+names(q10q12) <- c("assignment","future_assgn")
 ```
 
 ###Linear models: 
