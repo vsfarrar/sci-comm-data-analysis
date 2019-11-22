@@ -30,18 +30,21 @@ grade_data <- sc %>%
 grade_data
 
 #barplot of grade data 
-sc %>%
+grades<-sc %>%
   select(id, group, one_of(grades)) %>%
   pivot_longer(mt1:final, names_to = "exam", values_to = "grade") %>%
   mutate(perc = case_when(
     exam == "final" ~ (grade/60)*100,
     TRUE ~ (grade/30)*100)) %>%
-ggplot( aes(x=as.factor(exam), y= perc, fill=group)) +
-  geom_boxplot() +  
-  geom_point(position = position_jitterdodge()) + 
-  labs(x="Grade", y="Grade (in points)")+
-  #scale_x_discrete(labels=c("Total Course Grade", "Final Exam", "Midterm 1", "Midterm 2", "Midterm 3"))+
-  scale_fill_manual(values = c("gray", "lightblue"))+
+grades$exam <-as.factor(grades$exam)
+
+ggplot(grades, aes(x=fct_relevel(exam, c("mt1", "mt2", "mt3")), y= perc, fill=group)) +
+  geom_point(aes(color = group),position = position_jitterdodge(), show.legend = F) + 
+  geom_boxplot(outlier.shape = NA, alpha = 0.5) + 
+  labs(x="Grade", y="Grade (percent)")+
+  scale_x_discrete(labels=c("Midterm 1", "Midterm 2", "Midterm 3","Final Exam"))+
+  scale_fill_manual(name = "Group", values = group.colors)+
+  scale_color_manual(values = group.colors)+
   ggtitle("Grade differences between treatment groups")+
   plot_design
 ```
