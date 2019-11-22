@@ -49,7 +49,19 @@ sc %>%
   facet_wrap(~question, nrow = 2, labeller = labeller(question = q10q12)) + 
   theme_bw()
 
-q10q12<-c("The biweekly assignments were beneficial for my learning", "I would like to have exercises that are similar to the biweekly assignments in other courses")
-names(q10q12) <- c("assignment","future_assgn")
+#density plot
+sc %>%
+  select(id, group, assignment, future_assgn) %>%
+  tidyr::pivot_longer(assignment:future_assgn, names_to = "question", values_to = "score") %>%
+  filter(!is.na(score)) %>%
+  mutate(score = as.factor(score)) %>%
+  group_by(group, question, score) %>%
+  ggplot(aes(x=as.numeric(score),fill = group )) + 
+  geom_density(alpha = 0.5)+
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=40)", "Treatment\n(n=37)"), values = c("grey", "skyblue2")) + 
+  scale_x_reverse(name = "Likert score", breaks = (7:1), labels = function(x) str_wrap(likert.labels, width = 10))+ 
+  ylab("Count")+
+  facet_wrap(~question, nrow = 2, labeller = labeller(question = q10q12)) + 
+  theme_bw()
 ```
 
