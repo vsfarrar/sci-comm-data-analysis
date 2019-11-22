@@ -62,12 +62,15 @@ control.words <-control.text %>%
 
 #remove stop words
 control.words <- control.words %>%
-  anti_join(stop_words) #returns all rows of text that do not match the stop_words dataset 
+  anti_join(stop_words) %>% 
+  anti_join(physio_stop_words) #returns all rows of text that do not match the stop_words dataset 
 
 #sort words by counts (frequency)
 control.counts<-control.words%>%
   count(word, sort=TRUE)
 
+control.counts %>% 
+  with(wordcloud(word, n, max.words = 10))
 ```
 
 ```{r treatment data text parsing}
@@ -85,12 +88,16 @@ trt.words <-trt.text %>%
 
 #remove stop words
 trt.words <- trt.words %>%
-  anti_join(stop_words) #returns all rows of text that do not match the stop_words dataset 
+  anti_join(stop_words) %>% #returns all rows of text that do not match the stop_words dataset 
+  anti_join(physio_stop_words)
 
 #sort words by counts (frequency)
 trt.counts<-trt.words%>%
   count(word, sort=TRUE)
 
+#wordcloud
+trt.counts %>% 
+  with(wordcloud(word, n, max.words = 10, colors = "skyblue2"))
 
 #bigram analysis (word pairs)
 trt_bigrams <- trt.text %>%
