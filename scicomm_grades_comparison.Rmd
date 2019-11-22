@@ -1,0 +1,48 @@
+---
+title: "Fig. 3 : Grades Between Groups"
+output: html_notebook
+---
+```{r data setup}
+library(tidyverse)
+setwd("~/Documents/teaching/science_communication_data/github/sci-comm-data-analysis/") #set working directory
+
+#import data, functions, ggplot themes
+source("scicomm_datasets.R")
+source("scicomm_plot_themes.R")
+source("scicomm_functions.R") 
+```
+
+```{r}
+grades<-c("mt1","mt2","mt3","final", "coursetotal")
+
+#summary stats for grade data
+grade_data <- sc %>%
+  select(id, group, one_of(grades)) %>%
+  pivot_longer(mt1:final, names_to = "exam", values_to = "grade") %>%
+  mutate(perc = case_when(
+    exam == "final" ~ (grade/60)*100,
+    TRUE ~ (grade/30)*100)) %>%
+  group_by(group,exam) %>%
+  summarize(mean_perc = mean(perc, na.rm = TRUE), 
+            sd_perc = sd(grade, na.rm = TRUE)) %>%
+  arrange(exam)
+
+grade_data
+
+#barplot of grade data 
+sc %>%
+  select(id, group, one_of(grades)) %>%
+  pivot_longer(mt1:final, names_to = "exam", values_to = "grade") %>%
+  mutate(perc = case_when(
+    exam == "final" ~ (grade/60)*100,
+    TRUE ~ (grade/30)*100)) %>%
+ggplot( aes(x=as.factor(exam), y= perc, fill=group)) +
+  geom_boxplot() +  
+  geom_point(position = position_jitterdodge()) + 
+  labs(x="Grade", y="Grade (in points)")+
+  #scale_x_discrete(labels=c("Total Course Grade", "Final Exam", "Midterm 1", "Midterm 2", "Midterm 3"))+
+  scale_fill_manual(values = c("gray", "lightblue"))+
+  ggtitle("Grade differences between treatment groups")+
+  plot_design
+```
+
