@@ -7,6 +7,8 @@ library(pdftools)
 library(tidyverse)
 library(tidytext)
 library(textdata) #for sentiment analysis
+library(wordcloud)
+
 data(stop_words) #loads dataset of stop words from the tidytext package
 
 #stop word datasets for this dataset
@@ -52,7 +54,7 @@ control.text<-control.text %>%
   mutate(response = strsplit(as.character(response), "\n")) %>%
   mutate(response = gsub("[[:digit:]]", "", response)) 
 
-control.text <- data_frame(line = 1:1422, text = control.text$response) #formatted by line 
+control.text <- data_frame(line = 1:427, text = control.text$response) #formatted by line 
 
 #by word, using unnest_tokens
 control.words <-control.text %>%
