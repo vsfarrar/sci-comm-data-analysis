@@ -1,0 +1,55 @@
+---
+title: "Fig. 4 : Assignment Attitudes "
+output: html_notebook
+---
+Q10 and Q12 on the final qualtrics survey. 
+
+```{r data setup}
+library(tidyverse)
+setwd("~/Documents/teaching/science_communication_data/github/sci-comm-data-analysis/") #set working directory
+
+#import data, functions, ggplot themes
+source("scicomm_datasets.R")
+source("scicomm_plot_themes.R")
+source("scicomm_functions.R") 
+```
+
+```{r assignment questions, echo=FALSE, message=FALSE, warning=FALSE}
+#Q10 on the qualtrics survey are coded strangely, need to be scaled to interpretable numbers.
+#Q10 ($assignment) ranges 18 - 24. Subtract 17 to make it range 1 - 7. 
+sc$assignment <- (sc$assignment - 17) 
+
+#Q12 ranges 4 - 10. Subtract 3 to make range 1- 7. 
+sc$future_assgn <- (sc$future_assgn - 3) 
+
+###PLOT
+
+#likert labels for plots 
+
+likert.labels <-c("Strongly Disagree", "Disagree", "Somewhat Disagree", "Neither agree nor disagree", "Somewhat Agree", "Agree", "Strongly Agree" )
+
+#question labels for the facet_wrap labeller function 
+
+q10q12<-c("The biweekly assignments were beneficial for my learning", "I would like to have exercises that are similar to the biweekly assignments in other courses")
+names(q10q12) <- c("assignment","future_assgn")
+
+#Q10 and Q12 in one plot using facet wrap 
+sc %>%
+  select(id, group, assignment, future_assgn) %>%
+  tidyr::pivot_longer(assignment:future_assgn, names_to = "question", values_to = "score") %>%
+  filter(!is.na(score)) %>%
+  mutate(score = as.factor(score)) %>%
+  group_by(group, question, score) %>%
+  summarise(n = n ()) %>%
+  ggplot(aes(x=as.numeric(score), y=n, fill = group )) + 
+  geom_bar(stat = "identity", position = position_dodge(0.9), color = "black")+ 
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=40)", "Treatment\n(n=37)"), values = c("grey", "skyblue2")) + 
+  scale_x_reverse(name = "Likert score", breaks = (7:1), labels = function(x) str_wrap(likert.labels, width = 10))+ 
+  ylab("Count")+
+  facet_wrap(~question, nrow = 2, labeller = labeller(question = q10q12)) + 
+  theme_bw()
+
+q10q12<-c("The biweekly assignments were beneficial for my learning", "I would like to have exercises that are similar to the biweekly assignments in other courses")
+names(q10q12) <- c("assignment","future_assgn")
+```
+
