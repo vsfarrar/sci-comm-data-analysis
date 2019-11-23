@@ -4,6 +4,7 @@ output: html_notebook
 ---
 ```{r data setup}
 library(tidyverse)
+library(broom)
 setwd("~/Documents/teaching/science_communication_data/github/sci-comm-data-analysis/") #set working directory
 
 #import data, functions, ggplot themes
