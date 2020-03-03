@@ -6,7 +6,7 @@ Q10 and Q12 on the final qualtrics survey.
 
 ```{r data setup}
 library(tidyverse)
-setwd("~/Documents/teaching/science_communication_data/github/sci-comm-data-analysis/") #set working directory
+setwd("~/Documents/GitHub/sci-comm-data-analysis/") #set working directory
 
 #import data, functions, ggplot themes
 source("scicomm_datasets.R")
@@ -42,8 +42,8 @@ sc %>%
   group_by(group) %>%
   mutate(n = n()) %>%
   group_by(group, question, score) %>%
-  mutate(perc = case_when(group == "Control" ~ n()/80 ,
-                        group == "Treatment" ~ n()/74)) %>%
+  mutate(perc = case_when(group == "Control" ~ n()/40 ,
+                        group == "Treatment" ~ n()/37)) %>%
   group_by(group, question, score) %>%
   summarize(percent = mean(perc)) %>%
   ggplot(aes(x=as.numeric(score),y=(percent*100), fill = group )) + 
@@ -56,4 +56,49 @@ sc %>%
 
 #density plot
 ```
+```{r}
+#stats that show the average likert score (note that higher scores mean less agreement the way it was coded)
+sc %>%
+  select(id, group, assignment, future_assgn) %>%
+  tidyr::pivot_longer(assignment:future_assgn, names_to = "question", values_to = "score") %>%
+  filter(!is.na(score)) %>%
+  group_by(group, question) %>%
+  summarise( n = n(), 
+             avg = mean(score), 
+             sd = sd(score)) 
+
+#boxplots with likert scores
+sc %>%
+  select(id, group, assignment, future_assgn) %>%
+  tidyr::pivot_longer(assignment:future_assgn, names_to = "question", values_to = "score") %>%
+  filter(!is.na(score)) %>%
+  mutate(score = -score)%>% #to reverse the scores as they were reverse coded
+  ggplot(aes(x=question,y=score, fill = group)) + 
+  geom_boxplot(outlier.shape = NA, alpha = 0.5) + 
+  labs(x="Question", y="Likert Score")+
+  scale_x_discrete(labels=c("Assignments beneficial to my learning", "I would like similar exercises"))+
+  scale_y_continuous(name = "Likert score", breaks = (-7:-1), labels = function(x) str_wrap(likert.labels, width = 10)) +  #to label with agree/disagree scores
+  scale_fill_manual(name = "Group", values = group.colors)+
+  scale_color_manual(values = group.colors)+
+  ggtitle("Attitude differences between treatment groups")+
+  plot_design
+
+#t-tests on each question
+assignment_q<-sc %>%
+  select(id, group, assignment, future_assgn) %>%
+  tidyr::pivot_longer(assignment:future_assgn, names_to = "question", values_to = "score") %>%
+  filter(!is.na(score)) %>%
+  filter(question =="assignment")
+
+t.test(assignment_q$score ~ assignment_q$group) 
+
+future_q<-sc %>%
+  select(id, group, assignment, future_assgn) %>%
+  tidyr::pivot_longer(assignment:future_assgn, names_to = "question", values_to = "score") %>%
+  filter(!is.na(score)) %>%
+  filter(question =="future_assgn")
+
+t.test(future_q$score ~ future_q$group)
+```
+
 

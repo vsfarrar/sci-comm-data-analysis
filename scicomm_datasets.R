@@ -2,7 +2,8 @@
 
 
 #sc = joined sci-comm data 
-sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv")  
+##sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv")   #OLD
+sc<-read.csv(file="~/Documents/projects/scicomm_analysis_Arik/data/scicomm_data_joined.csv")
 
 #mutate to create question groupings by theme 
 sc<-sc %>%

@@ -5,13 +5,14 @@ output: html_notebook
 ```{r data setup}
 library(tidyverse)
 library(broom)
-setwd("~/Documents/teaching/science_communication_data/github/sci-comm-data-analysis/") #set working directory
+setwd("~/Documents/GitHub/sci-comm-data-analysis/") #set working directory
 
 #import data, functions, ggplot themes
 source("scicomm_datasets.R")
 source("scicomm_plot_themes.R")
 source("scicomm_functions.R") 
 ```
+
 ```{r between-group plots}
 #Final Survey Scores by Question Groupings BETWEEN-GROUPS 
 

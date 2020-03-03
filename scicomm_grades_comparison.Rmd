@@ -4,7 +4,7 @@ output: html_notebook
 ---
 ```{r data setup}
 library(tidyverse)
-setwd("~/Documents/teaching/science_communication_data/github/sci-comm-data-analysis/") #set working directory
+setwd("~/Documents/GitHub/sci-comm-data-analysis/") #set working directory
 
 #import data, functions, ggplot themes
 source("scicomm_datasets.R")
@@ -30,15 +30,16 @@ grade_data <- sc %>%
 grade_data
 
 #barplot of grade data 
-grades<-sc %>%
+grades2<-sc %>%
   select(id, group, one_of(grades)) %>%
   pivot_longer(mt1:final, names_to = "exam", values_to = "grade") %>%
   mutate(perc = case_when(
     exam == "final" ~ (grade/60)*100,
-    TRUE ~ (grade/30)*100)) %>%
-grades$exam <-as.factor(grades$exam)
+    TRUE ~ (grade/30)*100)) 
 
-ggplot(grades, aes(x=fct_relevel(exam, c("mt1", "mt2", "mt3")), y= perc, fill=group)) +
+grades2$exam <-as.factor(grades2$exam)
+
+ggplot(grades2, aes(x=fct_relevel(exam, c("mt1", "mt2", "mt3")), y= perc, fill=group)) +
   geom_point(aes(color = group),position = position_jitterdodge(), show.legend = F) + 
   geom_boxplot(outlier.shape = NA, alpha = 0.5) + 
   labs(x="Grade", y="Grade (percent)")+
@@ -47,5 +48,19 @@ ggplot(grades, aes(x=fct_relevel(exam, c("mt1", "mt2", "mt3")), y= perc, fill=gr
   scale_color_manual(values = group.colors)+
   ggtitle("Grade differences between treatment groups")+
   plot_design
+
+
+grade_perc<-sc %>%
+  select(id, group, one_of(grades)) %>%
+  pivot_longer(mt1:final, names_to = "exam", values_to = "grade") %>%
+  mutate(perc = case_when(
+    exam == "final" ~ (grade/60)*100,
+    TRUE ~ (grade/30)*100)) %>%
+  group_by(group,exam)
+
+#ANOVA / glm 
+m1<-lm(data=grade_perc, perc ~ exam +  group)
+summary(m1)
+anova(m1) #significant effect of exam, no significant effect of group (no interaction either)
 ```
 
