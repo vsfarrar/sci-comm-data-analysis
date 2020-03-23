@@ -12,12 +12,12 @@ library(wordcloud)
 data(stop_words) #loads dataset of stop words from the tidytext package
 
 #stop word datasets for this dataset
-physio_stop_words<-read.csv("~/Desktop/data/physio_stop_words.csv")
+physio_stop_words<-read.csv("~/Documents/GitHub/sci-comm-data-analysis/physio_stop_words.csv")
 npb_stop_words<-tibble(word=c("assignment", "assignments", "question","questions","biweekly", "worksheets", "worksheet"))
                        
-sc.text<-read.csv("~/Documents/teaching/science_communication_data/raw_data/Science Communication - Group Assignement and responses.csv", na.strings = c(" ","","NA")) #biweekly text reflections into dataframe sc.text
+sc.text<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/raw_data_from_Arik/Science Communication - Group Assignement and responses.csv", na.strings = c(" ","","NA")) #biweekly text reflections into dataframe sc.text
 
-sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv") #import joined scicomm data file
+sc<-read.csv(file="~/Documents/projects/scicomm_analysis_Arik/data/scicomm_data_joined.csv") #import joined scicomm data file
 
 #rename columns 
 colnames(sc.text)<-c("full_name","id", "sis_id","section","group","r1","r2","r3", "r4", "r5") 
@@ -28,12 +28,23 @@ colnames(sc.text)<-c("full_name","id", "sis_id","section","group","r1","r2","r3"
 #convert dataframe to long form so all text in one column 
 sc.text<-sc.text %>% 
  select(id, group,r1:r5)%>%
-  gather(biweekly_period, response, r1:r5)
+  gather(biweekly_period, response, r1:r5) %>%
+  drop_na(response) #after dropping NA, should be 864 reflections. 
 
+#split text into lines (one line per line), but maintains the id / group / response week
+library(tokenizers)
+sc_responses_lines <- sc.text %>%
+unnest_tokens(sentence, response, token= "lines") #this returns now 2668 observations 
+
+#write to file for future analysis
+write.csv(file="~/Desktop/scicomm_responses_by_line.csv", sc_responses_lines)
+
+```
+
+```{r create subset dataframes}
 #merge all responses across all biweekly periods. 
 #create dataframes for control text only , and treatment text only. 
 control.text<- sc.text %>%
-  na.omit() %>%
   filter(group =="Control") %>%
   select(response) %>%
   mutate_if(is.character, str_trim) #important: gets rid of white space rows 
