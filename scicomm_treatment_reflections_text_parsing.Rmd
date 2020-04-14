@@ -1,0 +1,32 @@
+---
+title: "SciComm project: Text Analysis"
+output: html_notebook
+---
+```{r data setup, include=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+sc.text<-read.csv(file="~/Documents/projects/scicomm_analysis_Arik/data/treatment_assignment_responses.csv")
+```
+
+```{r data manipulation, echo=FALSE}
+#split text into lines (one line per line), but maintains the id / group / response week
+#separates lines based on the period
+sc_responses_lines  <- separate_rows(sc.text, reflection_text, sep="\\.") 
+
+#write dataframe to a file for future coding 
+write.csv(sc_responses_lines, "~/Desktop/test.csv")
+```
+
+```{r word count}
+sc.text$wordcount <- sapply(sc.text$reflection_text, function(x) length(unlist(strsplit(as.character(x), "\\W+"))))
+
+sc.text %>%
+  group_by(response_no) %>%
+  summarise(avg_count = mean(wordcount)) %>%
+  ggplot(aes(x=as.factor(response_no), y= avg_count, label = round(avg_count, digits = 1))) + 
+    geom_bar(stat = "identity", fill = "white", color = "black") + 
+  geom_text(vjust = -2) + 
+  ylim(0, 110)
+   
+  
+```
