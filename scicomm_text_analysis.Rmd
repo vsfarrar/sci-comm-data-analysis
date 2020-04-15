@@ -26,8 +26,8 @@ colnames(sc.text)<-c("full_name","id", "sis_id","section","group","r1","r2","r3"
 
 ```{r data manipulation, echo=FALSE}
 #convert dataframe to long form so all text in one column 
-sc.text<-sc.text %>% 
- select(id, group,r1:r5)%>%
+sc.text<-sc.text%>% 
+ dplyr::select(id, group,r1:r5)%>%
   gather(biweekly_period, response, r1:r5) %>%
   drop_na(response) #after dropping NA, should be 864 reflections. 
 
@@ -39,6 +39,25 @@ unnest_tokens(sentence, response, token= "lines") #this returns now 2668 observa
 #write to file for future analysis
 write.csv(file="~/Desktop/scicomm_responses_by_line.csv", sc_responses_lines)
 
+```
+```{r word count}
+#2020-04-10
+
+#wordcount function
+sc.text$wordcount <- sapply(sc.text$response, function(x) length(unlist(strsplit(as.character(x), "\\W+"))))
+
+#pipe to a graph comparing wordcounts by group 
+sc.text %>%
+  group_by(group,biweekly_period) %>%
+  summarise(avg_count = mean(wordcount)) %>%
+  ggplot(aes(x=as.factor(biweekly_period), y= avg_count, fill = group, label = round(avg_count, digits = 1))) + 
+    geom_bar(stat = "identity", position = position_dodge(0.9), color = "black") + 
+  geom_text(vjust = -2, position = position_dodge(0.9)) + 
+  ylim(0, 150) +
+  labs(x = "Week of Assignment", y="Average word count of response") + 
+  theme_bw()
+  #facet_wrap(~group)
+   
 ```
 
 ```{r create subset dataframes}
