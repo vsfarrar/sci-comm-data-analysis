@@ -2,7 +2,6 @@
 
 
 #sc = joined sci-comm data 
-##sc<-read.csv(file="~/Desktop/data/scicomm_data_joined.csv")   #OLD
 sc<-read.csv(file="~/Documents/projects/scicomm_analysis_Arik/data/scicomm_data_joined.csv")
 
 #mutate to create question groupings by theme 
@@ -50,6 +49,37 @@ mutate(perc = case_when(    #create percentages for each question grouping to in
   question == "confidence" ~ (value/40))) %>%
   mutate(perc = perc*100)
 
+
+###### LIKERT ANALYSIS USING AVERAGES INSTEAD OF SUMS
+
+#same as previous code, but now using rowMeans instead of sums, with NAs removed from mean calculations
+sc_avg<-sc %>%
+  mutate(communitysense_begin = rowMeans(select_(.,"impact_begin", "impact2_begin", "convey_begin", "importscicomm_begin"), na.rm = T), 
+         communitysense_final = rowMeans(select_(.,"impact_final", "impact2_final", "convey_final", "importscicomm_final"), na.rm = T),
+         confidence_begin = rowMeans(select_(.,"explanation_begin", "explanation2_begin", "selfconf_begin","tellstory_begin"), na.rm = T), 
+         confidence_final = rowMeans(select_(.,"explanation_final", "explanation2_final", "selfconf_final","tellstory_final"), na.rm = T),
+         identity_begin = rowMeans(select_(.,"commpeer_begin", "commlay_begin", "idscicomm_begin", "commpeer2_begin", "commlay2_begin","idphysiocomm_begin"), na.rm = T),
+         identity_final = rowMeans(select_(.,"commpeer_final", "commlay_final", "idscicomm_final", "commpeer2_final", "commlay2_final","idphysiocomm_final"), na.rm = T),
+         toolsable_begin = rowMeans(select_(.,"tools_begin", "accurateinfo_begin", "assessaccuracy_begin"), na.rm = T),
+         toolsable_final = rowMeans(select_(.,"tools_final", "accurateinfo_final", "assessaccuracy_final"), na.rm = T)) %>%
+  #calculate change scores for each question grouping 
+  mutate(communitysense_change = communitysense_final - communitysense_begin, 
+         confidence_change = confidence_final - confidence_begin,
+         identity_change = identity_final - identity_begin,
+         toolsable_change = toolsable_final - toolsable_begin)
+
+#subset dataframe to just the likert questions and basic identifying information
+sc_avg<- sc_avg[c(3,5,6,23:51,66:94,106:117)]
+
+#transform to long format
+sc_avg_long <-sc_avg %>% 
+  pivot_longer(
+    cols = scientist_begin:toolsable_change,
+    names_to = c("question", "survey"),
+    names_pattern = "(.*)_(.*)",
+    values_to = "score") %>%
+  mutate(survey = as.factor(survey))%>%
+  mutate(survey = recode(survey, "begin" = "pre", "change" = "post-pre", "final" = "post")) 
 
 #GROUPS DEFINED FOR PROJECT
 

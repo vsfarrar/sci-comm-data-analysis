@@ -60,7 +60,56 @@ scid %>%
   ggtitle("Changes in Science Identity Score Within-Groups")+
   plot_design
 
+#boxplots with individual points 
+scid %>% 
+  filter(survey=="change") %>% 
+  filter(question %in% qgroupings) %>%
+  group_by(question, group) %>% 
+  ggplot(aes(x=as.factor(question), y= perc, fill = group)) + 
+  geom_point(aes(color = group), position = position_jitterdodge(), show.legend = F)+ 
+  geom_boxplot(alpha = 0.4, outlier.shape = NA) + 
+  geom_segment(aes(x=2.75, y=45, xend=3.25, yend=45))+ #significance bar for community
+  annotate("text", x = 3, y = 45.25, label = "**")+
+  geom_segment(aes(x=3.75, y=35, xend=4.25, yend=35))+ #significance bar for tools
+  annotate("text", x = 4, y = 35.25, label = "**")+
+  labs(x="Survey", y="Change in percent of total possible score \n(post-pre)")+
+  scale_fill_manual(name= "Group", labels = c("Control\n(n=25)", "Treatment\n(n=22)"), values = group.colors)+ 
+  scale_x_discrete(labels=qgroup.labels)+
+  scale_color_manual(values = group.colors)+
+  ggtitle("Changes in Science Identity Score Within-Groups")+
+  plot_design
+
 ```
+```{r}
+#Likert Averages Plot 
+sc_avg_long %>% 
+  filter(survey!="post-pre") %>% 
+  filter(question %in% qgroupings) %>%
+  group_by(question, group, survey) %>% 
+  summarise(smean = mean(score, na.rm = TRUE),  #summary statistics for each Q
+            ssd = sd(score, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         lower_ci = lower_ci(smean, se, count),
+         upper_ci = upper_ci(smean, se, count)) %>%
+  group_by(question) %>%
+  #plot:
+  ggplot(aes(x=as.factor(question), y= as.numeric(smean), fill = group, color = survey)) + 
+  geom_bar(stat="identity", position = position_dodge(0.9))+ 
+  geom_errorbar(aes(ymax=upper_ci,ymin=lower_ci),position=position_dodge(0.9), width=0.7)+
+  # geom_segment(aes(x=2.75, y=12, xend=3.25, yend=12))+ #significance bar for community
+  # annotate("text", x = 3, y = 12.25, label = "**")+
+  # geom_segment(aes(x=3.75, y=6, xend=4.25, yend=6))+ #significance bar for tools
+  # annotate("text", x = 4, y = 6.25, label = "**")+
+  labs(x="Survey", y="Average Likert Score")+
+  ylim(0,10)+ 
+  scale_color_manual(values=c("gray30","black"))+ 
+  scale_x_discrete(labels=qgroup.labels)+
+  scale_fill_manual(name = "Group", labels = c("Control", "Treatment"), values = group.colors)+
+  #ggtitle("Changes in Science Identity Score Within-Subjects")+
+  theme_bw()
+```
+
 
 ```{r t-tests}
 #t-tests of change in % scores WITHIN each group for each question grouping 
@@ -77,6 +126,13 @@ qgroups_within_ttests <- scid %>%
   select(-data, - fit)
   
 qgroups_within_ttests
+
+#Stats for Averages Likert 
+
+within_subj_avg<-sc_avg_long %>%
+  filter(survey != "change") %>%
+  filter(question %in% qgroupings) 
+
 ```
 
 
