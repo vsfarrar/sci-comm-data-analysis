@@ -1,0 +1,149 @@
+---
+title: "Science Communication Data Cleanup and Joins"
+output: html_notebook
+date: 2020-04-22
+---
+
+```{r}
+library(tidyverse)
+final_surv<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_final_survey_numeric.csv",na.strings=c("","NA"))
+initial_surv<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_initial_survey.csv",na.strings=c("","NA"))
+grades<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_course_grades.csv",na.strings=c("","NA"))
+groups<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_group_assgn.csv",,na.strings=c("","NA"))
+
+```
+
+### Data cleanup / filtering 
+
+```{r}
+#group together grades data with group assignment to get sis_id and group assignment 
+#inner join: only select students that are in groups and grades. 
+disc_grades<-inner_join(grades,groups,by = "id") #n = 211
+
+#group sample size check
+disc_grades %>%
+  group_by(group) %>% tally() #109 control, 102 treatment
+
+#remove excess columns and reflection responses for now
+disc_grades <- disc_grades %>% 
+  select(-section.x) %>%
+  select(-response_1, -response_2, -response_3, -response_4, -response_5)
+```
+### Evaluation criteria 
+Filtered out observations that took less than 3 minutes to take the survey or entered a mismatching student id (making accurate joins difficult).
+
+```{r survey filtering}
+#rename student_id column to sis_id in survey dataframes
+initial_surv<-rename(initial_surv, sis_id = student_id)
+final_surv<-rename(final_surv, sis_id = student_id)
+
+#sample size check
+initial_surv %>% filter(!is.na(sis_id)) %>% tally()   #214 obs. (more than students!)
+final_surv %>% filter(!is.na(sis_id)) %>% tally() #112 obs. 
+
+#filter out observations that took less than 3 minutes to take survey 
+initial2<-initial_surv %>%
+  filter(duration_sec > 180)   #131 observations
+final2<-final_surv %>%
+  filter(duration_sec > 180) #82 observations
+```
+
+```{r survey joins}
+#begin joins 
+
+#convert columns we are joining by (sis_id) to characters
+disc_grades$sis_id<-as.character(disc_grades$sis_id)
+initial2$sis_id<-as.character(initial2$sis_id)
+final2$sis_id<-as.character(final2$sis_id)
+
+#SANITY CHECK
+#inner join: only those in pre that have grades/group assignments 
+pre_inner<-inner_join(initial2, disc_grades, by = "sis_id") #now 113 (out of 131)
+post_inner<-inner_join(final2, disc_grades, by = "sis_id") #now 80 (out of 82)
+
+#anti join shows who the individuals are that do not have grades/group assignments
+pre_missing_group<-anti_join(initial2, disc_grades, by = "sis_id") #18 
+post_missing_group<-anti_join(final2,disc_grades, by = "sis_id") #only 2 
+```
+
+```{r remove duplicates before stack}
+#check for duplicates
+  #the following students have duplicate student ids in pre (n = 3)
+duplicates_pre<- pre_inner %>% 
+  group_by(sis_id) %>%
+  summarise(n = n()) %>%
+  filter(n > 1) %>%
+  pull(sis_id)
+
+  #the following students have duplicate student ids in post (n = 1)
+duplicates_post<- post_inner %>% 
+  group_by(sis_id) %>%
+  summarise(n = n()) %>%
+  filter(n > 1) %>%
+  pull(sis_id)
+
+#remove duplicates in each survey dataframe before stacking 
+
+`%notin%` <- Negate(`%in%`) #creates negate function 
+
+#remove all surveys with duplicate ids in pre
+pre_cleaned<- pre_inner %>%
+  filter(sis_id %notin% duplicates_pre) #lose 6 obs. (113 --> 107)
+
+#remove all surveys with duplicate ids in post
+post_cleaned<- post_inner %>%
+  filter(sis_id %notin% duplicates_post) #lose 2 obs. (80 --> 78)
+
+#can use anti_join to see data for removed students with duplicates. 
+    #anti_join(pre_inner, pre_cleaned, by ="sis_id") 
+```
+
+```{r stack pre and post}
+#next: stack together pre and post into one data frame using rbind
+
+#create survey column in both to be combined
+pre_cleaned$survey<-"pre"
+post_cleaned$survey<-"post"
+
+#remove columns that only appear in the final survey (will reappend later)
+post_only_cols <-post_cleaned %>% select(sis_id,assignment, future_assgn, comments)
+post_inner <- post_inner %>% select(-assignment, -future_assgn, -comments)
+
+#check to be sure column names match before stacking
+colnames(pre_cleaned) == colnames(post_cleaned) #all should be TRUE
+
+#stack the two dataframes together
+pre_post<-rbind(pre_cleaned,post_cleaned) 
+
+#sample size check 
+pre_post %>%
+  group_by(group, survey) %>%
+  tally()
+
+#create variable that checks if an individual has both surveys
+pre_post<-pre_post %>%
+  group_by(sis_id) %>%
+  mutate(n = n()) %>%
+  ungroup()%>%
+  mutate(both_surveys = case_when( n > 1 ~ "y", n <= 1 ~ "n")) %>%
+  select(-n)
+
+#sample size of those with both pre and post surveys
+  pre_post %>%
+      group_by(group, both_surveys) %>%
+    tally()
+  
+```
+
+```{r for within-groups}
+#get students with both (n= 100)
+both_surveys<-pre_post %>%
+  filter(both_surveys == "y")
+
+#NEED TO CALCULATE CHANGE. True long to true wide??
+```
+
+```{r}
+#send final, joined dataset to a csv file (ONLY RUN ONCE)
+write.csv(file="~/Desktop/scicomm_data_joined.csv", final_join)
+```
