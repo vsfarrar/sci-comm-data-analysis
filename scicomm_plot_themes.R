@@ -10,3 +10,4 @@ qgroup.labels <-c("Community", "Confidence", "Identity", "Tools & Abilities")
 
 #consistent colors for group factors
 group.colors <- c("grey", "skyblue2")
+

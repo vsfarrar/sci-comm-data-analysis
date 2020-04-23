@@ -12,9 +12,13 @@ sc.text<-read.csv(file="~/Documents/projects/scicomm_analysis_Arik/data/treatmen
 #split text into lines (one line per line), but maintains the id / group / response week
 #separates lines based on the period
 sc_responses_lines  <- separate_rows(sc.text, reflection_text, sep="\\.") 
+#separate again on the exclamation and new line
+sc_responses_lines_2  <- separate_rows(sc_responses_lines, reflection_text, sep="!")
+sc_responses_lines_2  <- separate_rows(sc_responses_lines_2, reflection_text, sep="\n") 
 
 #write dataframe to a file for future coding 
-write.csv(sc_responses_lines, "~/Desktop/test.csv")
+sc_responses_lines3 <- sc_responses_lines_2 %>% filter(reflection_text != "") #remove the blank rows
+write.csv(sc_responses_lines3, "~/Desktop/test.csv")
 ```
 
 ```{r word count}
