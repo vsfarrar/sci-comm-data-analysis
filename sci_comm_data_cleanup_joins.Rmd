@@ -18,21 +18,25 @@ groups<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_group_
 ```{r join grades and groups}
 #group together grades data with group assignment to get sis_id and group assignment 
 #inner join: only select students that are in groups and grades. 
-disc_grades<-inner_join(grades,groups,by = "id") #n = 211
+disc_grades_all<-inner_join(grades,groups,by = "id") #n = 211
 
 #group sample size check (how many students per group?)
-disc_grades %>%
+disc_grades_all %>%
   group_by(group) %>% tally() #109 control, 102 treatment
+
+#change joining variable (sis_id) to character
+disc_grades_all$sis_id<-as.character(disc_grades_all$sis_id)
+
 ```
 ### Evaluation criteria 
 Filtered out observations that took less than 3 minutes to take the survey and/or only completed 2 or fewer of the biweekly reflection assignments `(response_1:response_5)`. 
 
 
-```{r filter by reflection responses}
+```{r filter students by reflection responses}
 #filtering by reflection responses 
 
 #add columns on whether student completed each response 
-disc_grades<-disc_grades %>%
+disc_grades_all<-disc_grades_all %>%
   mutate(r1 = ifelse(!is.na(response_1),1,0), #(1 = completed, 0 = not completed)
          r2 = ifelse(!is.na(response_2),1, 0),
          r3 = ifelse(!is.na(response_3),1, 0),
@@ -42,7 +46,7 @@ disc_grades<-disc_grades %>%
          mutate(response_count = sum(r1, r2,r3,r4,r5))
 
 #filter the dataframe by those that completed 3 or more responses
-disc_grades <- disc_grades %>%
+disc_grades <- disc_grades_all %>%
   filter(response_count >= 3) 
 
 #updated sample size (now 192 students, 98 control, 94 treatment)
@@ -51,7 +55,7 @@ disc_grades %>%
 
 ```
 
-```{r survey filtering}
+```{r filter surveys by completion time}
 #rename student_id column to sis_id in survey dataframes
 initial_surv<-rename(initial_surv, sis_id = student_id)
 final_surv<-rename(final_surv, sis_id = student_id)
@@ -79,10 +83,6 @@ final2$sis_id<-as.character(final2$sis_id)
 #inner join: only those in pre that have grades/group assignments 
 pre_inner<-inner_join(initial2, disc_grades, by = "sis_id") #now 113 (out of 131)
 post_inner<-inner_join(final2, disc_grades, by = "sis_id") #now 80 (out of 82)
-
-#anti join shows who the individuals are that do not have grades/group assignments
-pre_missing_group<-anti_join(initial2, disc_grades, by = "sis_id") #18 
-post_missing_group<-anti_join(final2,disc_grades, by = "sis_id") #only 2 
 ```
 
 ```{r check for duplicates}
@@ -92,7 +92,7 @@ duplicates_pre<- pre_inner %>%
   group_by(sis_id) %>%
   summarise(n = n()) %>%
   filter(n > 1) %>%
-  pull(sis_id)
+  pull(sis_id)  #returns values in a vector
 
 #view the students' dataframe with duplicates in pre
 pre_inner %>%
