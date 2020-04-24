@@ -15,19 +15,37 @@ groups<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_group_
 
 ### Data cleanup / filtering 
 
-```{r}
+```{r join grades and groups}
 #group together grades data with group assignment to get sis_id and group assignment 
 #inner join: only select students that are in groups and grades. 
 disc_grades<-inner_join(grades,groups,by = "id") #n = 211
 
-#group sample size check
+#group sample size check (how many students per group?)
 disc_grades %>%
   group_by(group) %>% tally() #109 control, 102 treatment
+```
 
-#remove excess columns and reflection responses for now
-disc_grades <- disc_grades %>% 
-  select(-section.x) %>%
-  select(-response_1, -response_2, -response_3, -response_4, -response_5)
+```{r filter by reflection responses}
+#filtering by reflection responses 
+
+#add columns on whether student completed each response 
+disc_grades<-disc_grades %>%
+  mutate(r1 = ifelse(!is.na(response_1),1,0), #(1 = completed, 0 = not completed)
+         r2 = ifelse(!is.na(response_2),1, 0),
+         r3 = ifelse(!is.na(response_3),1, 0),
+         r4 = ifelse(!is.na(response_4),1, 0),
+         r5 = ifelse(!is.na(response_5),1, 0)) %>%
+        rowwise %>%  #for each row, count how many responses complete
+         mutate(response_count = sum(r1, r2,r3,r4,r5))
+
+#filter the dataframe by those that completed 3 or more responses
+disc_grades <- disc_grades %>%
+  filter(response_count >= 3) 
+
+#updated sample size (now 192 students, 98 control, 94 treatment)
+disc_grades %>%
+  group_by(group) %>% tally()
+
 ```
 ### Evaluation criteria 
 Filtered out observations that took less than 3 minutes to take the survey or entered a mismatching student id (making accurate joins difficult).
@@ -66,7 +84,7 @@ pre_missing_group<-anti_join(initial2, disc_grades, by = "sis_id") #18
 post_missing_group<-anti_join(final2,disc_grades, by = "sis_id") #only 2 
 ```
 
-```{r remove duplicates before stack}
+```{r check for duplicates}
 #check for duplicates
   #the following students have duplicate student ids in pre (n = 3)
 duplicates_pre<- pre_inner %>% 
@@ -75,12 +93,23 @@ duplicates_pre<- pre_inner %>%
   filter(n > 1) %>%
   pull(sis_id)
 
+#view the students' dataframe with duplicates in pre
+pre_inner %>%
+  filter(sis_id %in% duplicates_pre)
+
   #the following students have duplicate student ids in post (n = 1)
 duplicates_post<- post_inner %>% 
   group_by(sis_id) %>%
   summarise(n = n()) %>%
   filter(n > 1) %>%
   pull(sis_id)
+
+#view the students'with duplicates in post
+post_inner %>%
+  filter(sis_id %in% duplicates_post)
+```
+
+```{r remove duplicates before stack}
 
 #remove duplicates in each survey dataframe before stacking 
 
@@ -94,7 +123,7 @@ pre_cleaned<- pre_inner %>%
 post_cleaned<- post_inner %>%
   filter(sis_id %notin% duplicates_post) #lose 2 obs. (80 --> 78)
 
-#can use anti_join to see data for removed students with duplicates. 
+#can also use anti_join to see data for removed students with duplicates. 
     #anti_join(pre_inner, pre_cleaned, by ="sis_id") 
 ```
 
@@ -186,7 +215,7 @@ within_diff %>%
   summarise(indivs = n_distinct(sis_id))  
 ```
 
-```{r}
+```{r write to csv}
 #send final, joined dataset to a csv file (ONLY RUN ONCE)
 write.csv(file="~/Desktop/scicomm_data_joined.csv", final_join)
 ```
