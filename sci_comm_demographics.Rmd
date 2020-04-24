@@ -1,0 +1,24 @@
+---
+title: "sci_comm_demographics"
+author: "Victoria"
+date: "4/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+dem<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/npb101_f2019_demographics.csv")
+groups<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_group_assgn.csv",,na.strings=c("","NA"))
+grades<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_course_grades.csv",na.strings=c("","NA"))
+
+```
+
+```{r}
+#need to get sis_id into groups
+groups_sis<-inner_join(groups,grades, by = "id")
+groups_sis<-groups_sis %>% select(id, sis_id, section.x, login_id,group) %>% rename(section = section.x)
+dem<-dem %>% rename(sis_id = sid)
+#get demographics for grouped discussion students only (inner_join)
+disc_dem<-inner_join(dem, groups_sis, by = c("sis_id"))
+
+```

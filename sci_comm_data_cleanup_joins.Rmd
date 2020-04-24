@@ -107,7 +107,7 @@ post_cleaned$survey<-"post"
 
 #remove columns that only appear in the final survey (will reappend later)
 post_only_cols <-post_cleaned %>% select(sis_id,assignment, future_assgn, comments)
-post_inner <- post_inner %>% select(-assignment, -future_assgn, -comments)
+post_cleaned<- post_cleaned %>% select(-assignment, -future_assgn, -comments)
 
 #check to be sure column names match before stacking
 colnames(pre_cleaned) == colnames(post_cleaned) #all should be TRUE
@@ -115,10 +115,16 @@ colnames(pre_cleaned) == colnames(post_cleaned) #all should be TRUE
 #stack the two dataframes together
 pre_post<-rbind(pre_cleaned,post_cleaned) 
 
-#sample size check 
+#sample size check : 
+  #how many pre and post? (should be 107 pre, 78 post = 185 surveys) 
+pre_post %>%
+  group_by(survey) %>%
+  summarise(individuals = n_distinct(sis_id)) 
+
+  #how many treatment and control? (n = 69 control, 66 treat, = 135 individuals)
 pre_post %>%
   group_by(group, survey) %>%
-  tally()
+  summarise(individuals = n_distinct(sis_id))  
 
 #create variable that checks if an individual has both surveys
 pre_post<-pre_post %>%
@@ -131,7 +137,7 @@ pre_post<-pre_post %>%
 #sample size of those with both pre and post surveys
   pre_post %>%
       group_by(group, both_surveys) %>%
-    tally()
+      summarise(individuals= n_distinct(sis_id)) 
   
 ```
 
@@ -140,7 +146,44 @@ pre_post<-pre_post %>%
 both_surveys<-pre_post %>%
   filter(both_surveys == "y")
 
-#NEED TO CALCULATE CHANGE. True long to true wide??
+#NEED TO CALCULATE CHANGE. 
+
+#remove unneccesary columns 
+within_subj <-
+both_surveys %>%
+  select(-start_date, -end_date, -status,-ip_address,-progress, -duration_sec, -finished, -recorded_date, -response_id,-full_name.y, -sis_id_2, -X, -login_id, -final, -mt1, -mt2, -mt3, -grade_final, -letter_grade, -section.y, -both_surveys, -name, -sis_login_id, -first_name, -last_name)
+
+#convert to true long format 
+within_subj <- within_subj %>%
+  pivot_longer(cols = scientist:interested,
+               names_to = "question", 
+               values_to = "score") 
+
+#sample size sanity check 
+  #should match, both 24 control, 26 treat.
+both_surveys %>% group_by (group) %>% summarise(indivs = n_distinct(sis_id)) 
+
+within_subj %>%
+  group_by(group) %>%
+  summarise(indivs = n_distinct(sis_id)) 
+
+
+#create dataframe with pre, post, and difference scores for within-subj 
+within_diff<-
+within_subj %>%
+  group_by(id, question) %>% #should only be two observations in each pair (pre and post)
+  mutate(next_score = lead(score, order_by=id)) %>% #for each pre question, annotates the post score in next_score column
+  filter(survey == "pre") %>% #trim to only pre, as lead only works for pre.
+  rename(pre_score = score,   #rename score to pre-score
+         post_score = next_score) %>% #rename next-score to post-score
+  rowwise() %>% 
+  mutate(diff_score = post_score - pre_score) %>% #for each row, calculate post-pre across cols
+  select(-survey) #delete now-meaningless survey col
+
+#sample size check (still matches)
+within_diff %>%       
+  group_by(group) %>%        
+  summarise(indivs = n_distinct(sis_id))  
 ```
 
 ```{r}
