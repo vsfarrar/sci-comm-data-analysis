@@ -24,6 +24,9 @@ disc_grades<-inner_join(grades,groups,by = "id") #n = 211
 disc_grades %>%
   group_by(group) %>% tally() #109 control, 102 treatment
 ```
+### Evaluation criteria 
+Filtered out observations that took less than 3 minutes to take the survey and/or only completed 2 or fewer of the biweekly reflection assignments `(response_1:response_5)`. 
+
 
 ```{r filter by reflection responses}
 #filtering by reflection responses 
@@ -47,8 +50,6 @@ disc_grades %>%
   group_by(group) %>% tally()
 
 ```
-### Evaluation criteria 
-Filtered out observations that took less than 3 minutes to take the survey or entered a mismatching student id (making accurate joins difficult).
 
 ```{r survey filtering}
 #rename student_id column to sis_id in survey dataframes
@@ -127,6 +128,8 @@ post_cleaned<- post_inner %>%
     #anti_join(pre_inner, pre_cleaned, by ="sis_id") 
 ```
 
+###Combining pre and post data into one dataset
+Now combine the pre and post data from filtered students into one dataset. 
 ```{r stack pre and post}
 #next: stack together pre and post into one data frame using rbind
 
@@ -169,6 +172,8 @@ pre_post<-pre_post %>%
       summarise(individuals= n_distinct(sis_id)) 
   
 ```
+### Combine with demographics data 
+Data from CEE and Natalia (via email, 2020-04-23).
 
 ```{r import demographic data}
 #add demographic data 
@@ -205,7 +210,7 @@ test<-pre_post_dem %>%
   rename(login_id = login_id.x, group = group.x, section = section.x, id_2 = id.x, full_name = full_name.x)
 ```
 
-
+### Extract students that completed both surveys (within-groups)
 
 ```{r for within-groups}
 #get students with both (n= 100)
@@ -251,6 +256,8 @@ within_diff %>%
   group_by(group) %>%        
   summarise(indivs = n_distinct(sis_id))  
 ```
+
+### Export final datasets 
 
 ```{r write to csv}
 #send final, joined dataset to a csv file (ONLY RUN ONCE)
