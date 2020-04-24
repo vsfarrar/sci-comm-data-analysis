@@ -170,6 +170,43 @@ pre_post<-pre_post %>%
   
 ```
 
+```{r import demographic data}
+#add demographic data 
+dem<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/raw_data_from_Arik/NPB101_sp2019_demographics.csv")
+
+#need to get sis_id into groups
+groups_sis<-inner_join(groups,grades, by = "id")
+
+#select only the sis_id, section, group data for join
+groups_sis<-groups_sis %>% 
+  select(id, sis_id, section.x, login_id,group) %>% 
+  rename(section = section.x)
+
+#rename vars for join 
+dem<-dem %>% rename(sis_id = sid)
+
+#get demographics for grouped discussion students only (inner_join)
+disc_dem<-inner_join(dem, groups_sis, by = c("sis_id")) #it works! 211 obs. 
+```
+
+```{r join with demographic data}
+
+#convert joining variable (sis_id) to same class
+disc_dem$sis_id<-as.character(disc_dem$sis_id)
+pre_post$sis_id<-as.character(pre_post$sis_id)
+
+#inner join of pre_post with demographics
+pre_post_dem <- inner_join(pre_post, disc_dem, by = c("sis_id"))
+
+
+#clean up the final join to get rid of duplicate columns 
+test<-pre_post_dem %>% 
+  select(-id.y, -login_id.y, -group.y, -sis_id_2, -X, -r1, -r2, -r3, -r4, -r5, -section.y,-full_name.y) %>%
+  rename(login_id = login_id.x, group = group.x, section = section.x, id_2 = id.x, full_name = full_name.x)
+```
+
+
+
 ```{r for within-groups}
 #get students with both (n= 100)
 both_surveys<-pre_post %>%
