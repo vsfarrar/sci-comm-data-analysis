@@ -215,13 +215,39 @@ pre_post$sis_id<-as.character(pre_post$sis_id)
 
 #inner join of pre_post with demographics
 pre_post_dem <- inner_join(pre_post, disc_dem, by = c("sis_id"))
+```
 
-#NEED TO CLEAN UP THE FINAL JOIN. 
+```{r clean up FULL JOIN}
+#clean up final join before exporting  
+final_join <-pre_post_dem %>%
+  select(-r1, -r2,-r3,-r4,-r5, -status, -ip_address, -response_id, -last_name, -first_name, -name,) %>% #deselect unnecessary columns 
+  select(-full_name.y, -sis_id_2, -X, -id.y, -login_id.x, -login_id.y, -section.y, -group.y, -section.x) %>% #deselect duplicate cols.
+  rename(full_name = full_name.x, #rename duplicate cols. for readability
+         id = id.x,
+         group = group.x) %>%
+  select( full_name, sis_id, id, sis_login_id, group,survey, both_surveys, everything() ) %>% #reorders columns
+  select(full_name:interested, section, everything()) #reorder columns once more. 
+```
+
+```{r split final join into subsets}
+#unpaired_students
+unpaired_students<- final_join %>% 
+  filter(both_surveys == "n") 
+#paired_students (both surveys)
+paired_students_all <-final_join %>%
+  filter(both_surveys == "y") 
+#paired students (pre only)
+paired_students_pre <-final_join %>%
+  filter(both_surveys == "y") %>%
+  filter(survey == "pre")
+#paired students (post only)
+paired_students_post <-final_join %>%
+  filter(both_surveys == "y")  %>%
+  filter(survey == "post")
 ```
 
 ### Extract students that completed both surveys (within-groups)
-
-```{r for within-groups}
+```{r within-groups long format, differences}
 #get students with both (n= 100)
 both_surveys<-pre_post %>%
   filter(both_surveys == "y")
@@ -269,6 +295,13 @@ within_diff %>%
 ### Export final datasets 
 
 ```{r write to csv}
-#send final, joined dataset to a csv file (ONLY RUN ONCE)
-write.csv(file="~/Desktop/scicomm_data_joined.csv", final_join)
+#send final, joined dataset to a csv file 
+write.csv(file="~/Desktop/scicomm_complete_data_joined.csv", final_join)
+
+#unpaired_students
+write.csv(file="~/Desktop/unpaired_students_complete_join.csv", unpaired_students)
+
+#paired students (all surveys)
+write.csv(file="~/Desktop/paired_students_all_surveys_complete_join.csv", paired_students_all)
+
 ```
