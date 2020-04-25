@@ -81,13 +81,13 @@ final2$sis_id<-as.character(final2$sis_id)
 
 #SANITY CHECK
 #inner join: only those in pre that have grades/group assignments 
-pre_inner<-inner_join(initial2, disc_grades, by = "sis_id") #now 106 (out of 131)
+pre_inner<-inner_join(initial2, disc_grades, by = "sis_id") #now 108 (out of 131)
 post_inner<-inner_join(final2, disc_grades, by = "sis_id") #now 75 (out of 82)
 ```
 
 ```{r surveys missing group assignment}
 #anti join shows who the individuals are that did surveys but do not have grades/group assignments
-pre_missing_group<-anti_join(initial2, disc_grades, by = "sis_id") #25
+pre_missing_group<-anti_join(initial2, disc_grades, by = "sis_id") #23
 post_missing_group<-anti_join(final2,disc_grades, by = "sis_id") #7
 
 #these individuals were evaluated in the file: surveys_missing_groups.Rmd
