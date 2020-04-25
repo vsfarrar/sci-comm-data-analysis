@@ -61,12 +61,12 @@ initial_surv<-rename(initial_surv, sis_id = student_id)
 final_surv<-rename(final_surv, sis_id = student_id)
 
 #sample size check
-initial_surv %>% filter(!is.na(sis_id)) %>% tally()   #214 obs. (more than students!)
+initial_surv %>% filter(!is.na(sis_id)) %>% tally()   #213 obs. (more than students!)
 final_surv %>% filter(!is.na(sis_id)) %>% tally() #112 obs. 
 
 #filter out observations that took less than 3 minutes to take survey 
 initial2<-initial_surv %>%
-  filter(duration_sec > 180)   #131 observations
+  filter(duration_sec > 180)   #130 observations
 final2<-final_surv %>%
   filter(duration_sec > 180) #82 observations
 ```
@@ -81,7 +81,7 @@ final2$sis_id<-as.character(final2$sis_id)
 
 #SANITY CHECK
 #inner join: only those in pre that have grades/group assignments 
-pre_inner<-inner_join(initial2, disc_grades, by = "sis_id") #now 108 (out of 131)
+pre_inner<-inner_join(initial2, disc_grades, by = "sis_id") #now 107 (out of 130)
 post_inner<-inner_join(final2, disc_grades, by = "sis_id") #now 75 (out of 82)
 ```
 
@@ -98,7 +98,7 @@ post_missing_group<-anti_join(final2,disc_grades, by = "sis_id") #7
 
 ```{r check for duplicates}
 #check for duplicates
-  #the following students have duplicate student ids in pre (n = 2)
+  #the following students have duplicate student ids in pre (n = 2 students, 4 entries)
 duplicates_pre<- pre_inner %>% 
   group_by(sis_id) %>%
   summarise(n = n()) %>%
@@ -109,7 +109,7 @@ duplicates_pre<- pre_inner %>%
 pre_inner %>%
   filter(sis_id %in% duplicates_pre)
 
-  #the following students have duplicate student ids in post (n = 1)
+  #the following students have duplicate student ids in post (n = 1 students, 2 entries)
 duplicates_post<- post_inner %>% 
   group_by(sis_id) %>%
   summarise(n = n()) %>%
@@ -126,6 +126,7 @@ post_inner %>%
 
 #convert recorded_date to a date-time variable (as.POSIXct)
 pre_inner$recorded_date<-as.POSIXct(pre_inner$recorded_date, format="%m/%d/%Y %H:%M")
+post_inner$recorded_date<-as.POSIXct(post_inner$recorded_date, format="%m/%d/%Y %H:%M")
 
 #for each individual, keep only the first entry (earliest "shortest" date-time stamp)
 pre_cleaned<-pre_inner %>%
@@ -215,11 +216,7 @@ pre_post$sis_id<-as.character(pre_post$sis_id)
 #inner join of pre_post with demographics
 pre_post_dem <- inner_join(pre_post, disc_dem, by = c("sis_id"))
 
-
-#clean up the final join to get rid of duplicate columns 
-test<-pre_post_dem %>% 
-  select(-id.y, -login_id.y, -group.y, -sis_id_2, -X, -r1, -r2, -r3, -r4, -r5, -section.y,-full_name.y) %>%
-  rename(login_id = login_id.x, group = group.x, section = section.x, id_2 = id.x, full_name = full_name.x)
+#NEED TO CLEAN UP THE FINAL JOIN. 
 ```
 
 ### Extract students that completed both surveys (within-groups)
