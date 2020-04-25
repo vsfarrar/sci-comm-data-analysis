@@ -98,7 +98,7 @@ post_missing_group<-anti_join(final2,disc_grades, by = "sis_id") #7
 
 ```{r check for duplicates}
 #check for duplicates
-  #the following students have duplicate student ids in pre (n = 3)
+  #the following students have duplicate student ids in pre (n = 2)
 duplicates_pre<- pre_inner %>% 
   group_by(sis_id) %>%
   summarise(n = n()) %>%
@@ -122,21 +122,22 @@ post_inner %>%
 ```
 
 ```{r remove duplicates before stack}
+#select the first survey entry (earliest date and time in recorded_date column)
 
-#remove duplicates in each survey dataframe before stacking 
+#convert recorded_date to a date-time variable (as.POSIXct)
+pre_inner$recorded_date<-as.POSIXct(pre_inner$recorded_date, format="%m/%d/%Y %H:%M")
 
-`%notin%` <- Negate(`%in%`) #creates negate function 
+#for each individual, keep only the first entry (earliest "shortest" date-time stamp)
+pre_cleaned<-pre_inner %>%
+        group_by(id) %>%
+        top_n(n=-1, recorded_date) #negative 1 essentially chooses the bottom_n, or lowest.
+#now 105 surveys. 
 
-#remove all surveys with duplicate ids in pre
-pre_cleaned<- pre_inner %>%
-  filter(sis_id %notin% duplicates_pre) #lose 6 obs. (113 --> 107)
+post_cleaned<-post_inner %>%
+        group_by(id) %>%
+        top_n(n=-1, recorded_date) 
+#now 74 surveys.
 
-#remove all surveys with duplicate ids in post
-post_cleaned<- post_inner %>%
-  filter(sis_id %notin% duplicates_post) #lose 2 obs. (80 --> 78)
-
-#can also use anti_join to see data for removed students with duplicates. 
-    #anti_join(pre_inner, pre_cleaned, by ="sis_id") 
 ```
 
 ###Combining pre and post data into one dataset
