@@ -1,0 +1,114 @@
+---
+title: "Evaluating surveys without experimental group assignments "
+author: "Victoria"
+date: "4/24/2020"
+output: html_document
+---
+# Goal: To evaluate surveys missing group assignments
+Surveys (pre and post) that were completed but could not be joined with the discussion group assignments. 
+Why are these students missing groups? 
+
+Possible explanations: 
+*   Did not complete 3+ reflection responses and got filtered out
+*   Mistyped their own SIS ID on the survey, making it so that the data could not be joined?
+*   Not in the discussion section at all - auditing discussion. 
+*   (Pre-survey only) Dropped the class before they could take the post-survey and did not recieve a course grade. 
+
+```{r}
+#run sci_comm_data_cleanup_joins.Rmd before running this code. 
+  #source this in R?
+```
+
+```{r evaluate missing students}
+#anti join shows who the individuals are that did surveys but do not have grades/group assignments
+pre_missing_group<-anti_join(initial2, disc_grades, by = "sis_id") #25
+post_missing_group<-anti_join(final2,disc_grades, by = "sis_id") #7
+
+#WHO ARE THESE STUDENTS?
+```
+
+```{r pre-survey}
+#PRE: 
+#how many simply did not complete 3+ reflection responses? (n = 7 of 25)
+
+#returns those present in discussion grades pre-filtering
+few_responses_pre<-inner_join(pre_missing_group, disc_grades_all, by = "sis_id") 
+
+few_responses_pre %>% 
+  summarise(n = n(), 
+            max_response_no = max(response_count))    #7 individuals 
+
+#remove these from missing group now
+pre_miss2 <- anti_join(pre_missing_group, few_responses_pre, by = "sis_id") #now 18
+
+#did the students mistype their own student id? in that case, name should appear even if id doesn't match
+disc_grades_all$name <-as.character(disc_grades_all$name)
+pre_miss2$last_name<-as.character(pre_miss2$last_name)
+disc_grades_all<-separate(disc_grades_all, col = name, into = c("last_name", "first_name"), sep = ",")
+
+#compare last names of those missing groups to the last names in discussion
+
+#not in discussion group assignment (n = 13)
+pre_miss2$last_name[str_detect(pre_miss2$last_name, str_c(disc_grades_all$last_name, collapse = "|"), negate = T)]
+
+#yes in dicsussion group assignment (n = 5)
+pre_miss2$last_name[str_detect(pre_miss2$last_name, str_c(disc_grades_all$last_name, collapse = "|"), negate = F)]
+
+#of the Yes, did their sis_id's not match?
+pre_miss2$sis_id[str_detect(pre_miss2$sis_id, str_c(disc_grades_all$sis_id, collapse = "|"), negate = F)] #returns 0
+  #indicates sis_id did not match. will need to manually go back and fix for these 5. 
+
+#of the No, were they enrolled in lecture class and have a grade?
+grades<-separate(grades, col = name, into = c("last_name", "first_name"), sep = ",")
+
+#create a vector with last names not assigned a discussion group.
+not_in_disc<-pre_miss2$last_name[str_detect(pre_miss2$last_name, str_c(disc_grades_all$last_name, collapse = "|"), negate = T)]
+
+#compare with lecture course grades.
+#not in discussion, but present in lecture (had grade) --> auditors
+not_in_disc[str_detect(not_in_disc, str_c(grades$last_name, collapse = "|"), negate = F)]
+
+#not in discussion, no grade. --> dropped
+not_in_disc[str_detect(not_in_disc, str_c(grades$last_name, collapse = "|"), negate = T)]
+
+```
+
+```{r post-survey}
+#POST 
+#how many simply did not complete 3+ reflection responses?
+
+#returns those present in discussion grades pre-filtering
+few_responses_post<-inner_join(post_missing_group, disc_grades_all, by = "sis_id") 
+
+few_responses_post %>% 
+  summarise(n = n(), 
+            max_response_no = max(response_count))    #5 out of 7 indivs.
+
+#remove these from missing group now
+post_miss2 <- anti_join(post_missing_group, few_responses_post, by = "sis_id") #now 2
+
+#did the students mistype their own student id? in that case, name should appear even if id doesn't match
+post_miss2$last_name<-as.character(post_miss2$last_name)
+
+#compare last names of those missing groups to the last names in discussion
+
+#not in discussion group assignment (n = 2 of 2)
+post_miss2$last_name[str_detect(post_miss2$last_name, str_c(disc_grades_all$last_name, collapse = "|"), negate = T)]
+  #one was NA - did not enter a name or sis-id
+
+# were they enrolled in lecture class and have a grade?
+
+#create a vector with last names not assigned a discussion group.
+not_in_disc_post<-post_miss2$last_name[str_detect(post_miss2$last_name, str_c(disc_grades_all$last_name, collapse = "|"), negate = T)]
+
+#compare with lecture course grades.
+
+#none were auditors
+not_in_disc_post[str_detect(not_in_disc_post, str_c(grades$last_name, collapse = "|"), negate = F)]
+
+#did not recieve a grade in the course but did post survey...??  (n = 1)
+not_in_disc_post[str_detect(not_in_disc_post, str_c(grades$last_name, collapse = "|"), negate = T)]
+
+```
+
+
