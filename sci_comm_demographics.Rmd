@@ -43,11 +43,15 @@ disc %>%
     summarise(n = n())
 
 #paired students only 
-disc %>%
-    filter(both_surveys == "y") %>%
+
+#create paired students dataframe
+paired<- disc %>%
+    filter(both_surveys == "y") %>% #must have both surveys. 
     group_by(group, id) %>% 
-        top_n(1,survey) %>% #takes only one survey (=row) per student,for students that have both
-    ungroup() %>%
+        top_n(1,survey) #takes only one survey (=row) per student,for students that have both
+
+#demographic percentages for paired: 
+paired %>%
     group_by(group) %>%
     summarise(n = n(),
               percent_transfer = (sum(admit_level == "Transfer", na.rm = T)/n)*100, 
@@ -58,15 +62,11 @@ disc %>%
               avg_gpa_prior = mean(gpa_prior))
 
 #ethnicity (can do the same for class_level_prior)
-disc %>%
-    filter(both_surveys == "y") %>%
-    group_by(group, id) %>% 
-        top_n(1,survey) %>% #takes only one survey (=row) per student,for students that have both
-    ungroup() %>%
+paired %>% 
     group_by(group, ethnicity) %>%
     summarise(n = n())
 ```
-```{r}
+```{r chi squared tests}
 #check for differences in demographics between groups: 
 
 hist(disc$gpa_prior) #normal enough
@@ -78,7 +78,7 @@ chisq.test(disc$group, disc$first_gen, correct=FALSE)
 chisq.test(disc$group, disc$urm, correct=FALSE)
 
 #paired chi squared only 
-chisq.test(paired$group, paired$low_income, correct=FALSE)
-chisq.test(paired$group, paired$first_gen, correct=FALSE)
+chisq.test(paired$group, paired$low_income, correct=FALSE) #p = 0.554
+chisq.test(paired$group, paired$first_gen, correct=FALSE) #p = 0.215
 ```
 
