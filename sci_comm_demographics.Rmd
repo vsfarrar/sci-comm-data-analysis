@@ -81,4 +81,38 @@ chisq.test(disc$group, disc$urm, correct=FALSE)
 chisq.test(paired$group, paired$low_income, correct=FALSE) #p = 0.554
 chisq.test(paired$group, paired$first_gen, correct=FALSE) #p = 0.215
 ```
+```{r TA/section split}
+#how are students allocated across sections and TAs?
+
+#create vectors of each TA's sections 
+#found in emails to Dianna, spring 2019 
+aarushi <- c("NPB 101D 001 SQ 2019","NPB 101D 002 SQ 2019","NPB 101D 004 SQ 2019")
+arik <- c("NPB 101D 003 SQ 2019","NPB 101D 006 SQ 2019","NPB 101D 009 SQ 2019")
+victoria <- c("NPB 101D 005 SQ 2019","NPB 101D 007 SQ 2019","NPB 101D 008 SQ 2019")
+ 
+#assign sections to TA 
+disc <-disc %>%
+    mutate( TA = case_when(
+        section %in% aarushi ~ "AG", 
+        section %in% arik ~ "AD", 
+        section %in% victoria ~ "VF"))
+        
+
+#look at split across TAs: 
+
+disc %>%
+    #filter(both_surveys == "y") %>%  #uncomment this line to run for only paired students 
+    group_by(group, id) %>% 
+        top_n(1,survey) %>% #takes only one survey (=row) per student,for students that have both
+    ungroup() %>%
+    select(group, section, TA) %>%
+    group_by(group) %>%
+    mutate(n = n()) %>% #sample size per group
+    ungroup() %>%
+    group_by(group,TA) %>%
+    summarise(n_section = n(),  #sample size per group*TA
+              n_group = mean(n),  #sample size of group
+              percent_TA = n_section/n_group *100) #percent of sample size in that TA. 
+```
+
 
