@@ -7,18 +7,78 @@ output: html_document
 
 ```{r setup, include=FALSE}
 library(tidyverse)
-dem<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/npb101_f2019_demographics.csv")
-groups<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_group_assgn.csv",,na.strings=c("","NA"))
-grades<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_course_grades.csv",na.strings=c("","NA"))
+#import data
+disc<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/cleaned_complete_joins/scicomm_complete_data_joined.csv")
+disc<-mutate_all(disc, list(~na_if(.,"")))
+
+#recode a few levels
+disc$first_gen<-recode(disc$first_gen, "true" = "1")
+disc$urm<-recode(disc$urm, "true" = "1", "false" = "0")
+disc$low_income<-recode(disc$low_income, "true" = "1")
 
 ```
 
 ```{r}
-#need to get sis_id into groups
-groups_sis<-inner_join(groups,grades, by = "id")
-groups_sis<-groups_sis %>% select(id, sis_id, section.x, login_id,group) %>% rename(section = section.x)
-dem<-dem %>% rename(sis_id = sid)
-#get demographics for grouped discussion students only (inner_join)
-disc_dem<-inner_join(dem, groups_sis, by = c("sis_id"))
+#demographic stats overview 
+#all students 
+disc %>%
+    group_by(group, id) %>% 
+        top_n(1,survey) %>% #takes only one survey (=row) per student,for students that have both
+    ungroup() %>%
+    group_by(group) %>%
+    summarise(n = n(),
+              percent_transfer = (sum(admit_level == "Transfer", na.rm = T)/n)*100, 
+              percent_urm = (sum(urm == "1" , na.rm = T)/n)*100,
+              percent_female = (sum(gender == "F",  na.rm = T)/n)*100, 
+              percent_first_gen =  (sum(first_gen == "1",  na.rm = T)/n)*100,
+              percent_low_income = (sum(low_income == "1",  na.rm = T)/n)*100, 
+              avg_gpa_prior = mean(gpa_prior))
 
+#ethnicity 
+disc %>%
+    group_by(group, id) %>% 
+        top_n(1,survey) %>% #takes only one survey (=row) per student,for students that have both
+    ungroup() %>%
+    group_by(group, ethnicity) %>%
+    summarise(n = n())
+
+#paired students only 
+disc %>%
+    filter(both_surveys == "y") %>%
+    group_by(group, id) %>% 
+        top_n(1,survey) %>% #takes only one survey (=row) per student,for students that have both
+    ungroup() %>%
+    group_by(group) %>%
+    summarise(n = n(),
+              percent_transfer = (sum(admit_level == "Transfer", na.rm = T)/n)*100, 
+              percent_urm = (sum(urm == "1" , na.rm = T)/n)*100,
+              percent_female = (sum(gender == "F",  na.rm = T)/n)*100, 
+              percent_first_gen =  (sum(first_gen == "1",  na.rm = T)/n)*100,
+              percent_low_income = (sum(low_income == "1",  na.rm = T)/n)*100, 
+              avg_gpa_prior = mean(gpa_prior))
+
+#ethnicity (can do the same for class_level_prior)
+disc %>%
+    filter(both_surveys == "y") %>%
+    group_by(group, id) %>% 
+        top_n(1,survey) %>% #takes only one survey (=row) per student,for students that have both
+    ungroup() %>%
+    group_by(group, ethnicity) %>%
+    summarise(n = n())
 ```
+```{r}
+#check for differences in demographics between groups: 
+
+hist(disc$gpa_prior) #normal enough
+pairwise.t.test(disc$gpa_prior, disc$group) #prior gpa does not significantly differ between control and treatment
+
+#chi squared tests show no difference in likelihood to be in control or treatment given low income, first gen, or urm 
+chisq.test(disc$group, disc$low_income, correct=FALSE)
+chisq.test(disc$group, disc$first_gen, correct=FALSE)
+chisq.test(disc$group, disc$urm, correct=FALSE)
+
+#paired chi squared only 
+chisq.test(paired$group, paired$low_income, correct=FALSE)
+chisq.test(paired$group, paired$first_gen, correct=FALSE)
+```
+
