@@ -15,12 +15,51 @@ lines<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/treatment_refle
 
 codes<-
 lines %>%
-  select(-X, -sis_login_id, -section, group, -reflection_text) %>%
+  select(-X, -sis_login_id, -section, group, -reflection_text, -group) %>%
   mutate_all(~replace(., is.na(.), 0)) %>% #replace NA with 0 for sum purposes
- group_by(group, id, response_no) %>% summarise_all(funs(sum)) #add up each variable for this grouping. 
+ group_by( id, response_no) %>% summarise_all(funs(sum)) 
+
+#take collapsed dataframe and convert to yes/no to presence/absence of each theme 
+codes_binary <-
+codes %>%
+  group_by(id, response_no) %>%
+   mutate_if(is.numeric, ~1 * (. != 0)) #create a binary y/n whether they expressed that theme 
 ```
 ```{r}
+#sample size of reflections  and students 
+lines %>%
+  group_by(response_no) %>%
+  summarise(n_reflections = n(), 
+            n_students = n_distinct(id))
+```
 
+```{r}
+#count of each "theme" across reflections 
+codes_binary %>%
+  select(-id) %>%
+  group_by(response_no)%>%
+  mutate(n_students = n())%>%
+  group_by(response_no, n_students) %>%
+  summarise_all(funs(sum)) %>%
+  select(-id)
+
+#need to convert to %s as seen in previous dataframes 
+
+
+```
+
+```{r}
+
+codes_binary %>%
+    group_by(response_no) %>%
+    summarise(n = n(),
+              perc_neutral = (sum(neutral, na.rm = T)/n)*100, 
+              perc_class_metacog = (sum(class_metacog , na.rm = T)/n)*100,
+              perc_gaps_knowledge = (sum(gaps_knowledge,  na.rm = T)/n)*100, 
+              perc_comm_metacog =  (sum(comm_metacog,  na.rm = T)/n)*100,
+              perc_contextualize = (sum(contextualize,  na.rm = T)/n)*100, 
+              perc_positive = (sum(positive,  na.rm = T)/n)*100,
+              perc_negative = (sum(negative,  na.rm = T)/n)*100) 
 ```
 
 
