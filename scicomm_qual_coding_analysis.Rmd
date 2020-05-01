@@ -1,0 +1,27 @@
+---
+title: "SciComm Qualitative Coding Analysis"
+author: "Victoria"
+date: "4/30/2020"
+output: html_document
+---
+```{r data setup}
+library(tidyverse)
+#import coded sentences
+lines<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/treatment_reflections_sentences_coded.csv",na.strings=c("","NA"))
+```
+
+```{r}
+#collapse into one student reflection per week (ex: a student who did all 5 should have 5 lines in df total)
+
+codes<-
+lines %>%
+  select(-X, -sis_login_id, -section, group, -reflection_text) %>%
+  mutate_all(~replace(., is.na(.), 0)) %>% #replace NA with 0 for sum purposes
+ group_by(group, id, response_no) %>% summarise_all(funs(sum)) #add up each variable for this grouping. 
+```
+```{r}
+
+```
+
+
+
