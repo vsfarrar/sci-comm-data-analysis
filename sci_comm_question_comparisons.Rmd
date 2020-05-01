@@ -1,0 +1,80 @@
+---
+title: "SciComm: Question Comparisons"
+author: "Victoria"
+date: "4/23/2020"
+output: html_document
+---
+```{r}
+#import data
+disc<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/cleaned_complete_joins/scicomm_complete_data_joined.csv")
+disc<-mutate_all(disc, list(~na_if(.,"")))
+
+#get rid of scientific notation
+options(scipen = 999)
+```
+
+### Paired: Within-subjects comparisons 
+* Pre versus Post for Control and Treatment 
+* Post-pre Control versus Post-pre Treatment
+
+```{r}
+#Goal: to Match Natalia's figure from Excel 
+
+#pivot to long form to be able to compare each question
+paired_long <- disc %>%
+  filter(both_surveys == "y") %>%
+  pivot_longer(cols = scientist:interested,
+               names_to = "question", 
+               values_to = "score") 
+
+#calculate differences in score (post-pre)
+#code from sci_comm_data_cleanup_joins.Rmd
+within_subj<-
+paired_long %>%
+  group_by(id, question) %>% #should only be two observations in each pair (pre and post)
+  mutate(next_score = lead(score, order_by=id)) %>% #for each pre question, annotates the post score in next_score column
+  filter(survey == "pre") %>% #trim to only pre, as lead only works for pre.
+  rename(pre_score = score,   #rename score to pre-score
+         post_score = next_score) %>% #rename next-score to post-score
+  rowwise() %>% 
+  mutate(diff_score = post_score - pre_score) %>% #for each row, calculate post-pre across cols
+  select(-survey) #delete now-meaningless survey col
+  
+```
+
+```{r}
+#table: post-pre (difference in scores) for each group, by question
+within_subj %>%
+  group_by(group, question) %>%
+  summarise(avg_diff = round(mean(diff_score, na.rm = T),3)) %>%
+  pivot_wider(names_from = group, values_from = avg_diff) %>% #change format for control, treatment next to each other
+  rename(Control_AvgPost_Pre = Control,  #rename columns for interpretability
+         Treat_AvgPost_Pre = Treatment)
+
+#table: pre and post for each group, by question 
+  #for PAIRED ONLY 
+
+within_subj %>%
+  group_by(group, question) %>%
+  summarise(avg_pre = round(mean(pre_score, na.rm = T),3),
+            avg_post = round(mean(post_score, na.rm = T),3)) %>%
+  pivot_wider(names_from = group, values_from = c(avg_pre, avg_post))  #change format for control, treatment next to each other
+
+
+```
+
+```{r plot differences by group}
+#Goal: to Match Natalia's figure from Excel 
+within_subj %>%
+  group_by(group, question) %>%
+  summarise(avg_diff = mean(diff_score, na.rm = T),
+            sd_diff = sd(diff_score, na.rm = T)) %>%
+  ggplot(aes(x=as.factor(question), y=avg_diff, fill = as.factor(group))) + 
+    geom_col(stat = "identity", position = position_dodge(0.5), color = "black")  + 
+    scale_fill_manual(values = c("blue", "orange")) + 
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+
+
