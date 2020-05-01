@@ -44,13 +44,8 @@ codes_binary %>%
   select(-id)
 
 #need to convert to %s as seen in previous dataframes 
-
-
-```
-
-```{r}
-
-codes_binary %>%
+themes_percents<- 
+  codes_binary %>%
     group_by(response_no) %>%
     summarise(n = n(),
               perc_neutral = (sum(neutral, na.rm = T)/n)*100, 
@@ -60,7 +55,57 @@ codes_binary %>%
               perc_contextualize = (sum(contextualize,  na.rm = T)/n)*100, 
               perc_positive = (sum(positive,  na.rm = T)/n)*100,
               perc_negative = (sum(negative,  na.rm = T)/n)*100) 
+
+#theme percents in long form for ggplots. 
+theme_perc_long <- 
+  themes_percents %>%
+  select(-n) %>%
+  pivot_longer(-response_no, names_to = "theme", values_to = "percent") %>%
+  mutate(theme = gsub( "perc_", "", as.character(theme))) %>% #get rid of perc_ header in theme names 
+  mutate_if(is.character, as.factor) #convert back to factor 
 ```
+
+```{r theme plots assgn 1 2 4 }
+#view assignments 1, 2, 4 as bar graphs 
+
+#across assignments: 
+theme_perc_long %>%
+  filter(response_no %in% c(1,2,4)) %>%
+  ggplot(aes(x = theme, y = percent, fill = as.factor(response_no))) + 
+  geom_col(position = position_dodge(0.9)) + 
+  facet_wrap(~ response_no)
+
+#across themes: 
+theme_perc_long %>%
+  filter(response_no %in% c(1,2,4)) %>%
+  filter(theme != "neutral") %>%
+  ggplot(aes(x = as.factor(response_no), y = percent, fill = theme)) + 
+  geom_col(position = position_dodge(0.9), color = "black") + 
+  ylim(0,100)+ 
+  scale_x_discrete(labels = c("Teach", "Tweet", "Creative/Art"))+ 
+  labs(x = NULL, y = "Percent of responses where theme was present") + 
+  facet_wrap(~ theme) + 
+  plot_design + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+
+```
+```{r}
+#theme plot for numbers 1, 3, 5 (teaching assignment)
+#across themes: 
+theme_perc_long %>%
+  filter(response_no %in% c(1,3,5)) %>%
+  filter(theme != "neutral") %>%
+  ggplot(aes(x = as.factor(response_no), y = percent, fill = theme)) + 
+  geom_col(position = position_dodge(0.9), color = "black") + 
+  ylim(0,100)+ 
+  scale_x_discrete(labels = c("1st", "2nd", "3rd"))+ 
+  labs(x = "Time students completed teaching assignment", y = "Percent of responses where theme was present") + 
+  facet_wrap(~ theme) + 
+  plot_design + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+
+```
+
 
 
 
