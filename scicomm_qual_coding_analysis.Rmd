@@ -140,6 +140,10 @@ ggsave("~/Desktop/assgn124.png", assgn135, height = 7, width = 7, units = "in")
 
 ```
 
+### Resoures used
+[Count number of values in row using dplyr](https://stackoverflow.com/questions/37731987/count-number-of-values-in-row-using-dplyr)
+[gsub for string split](https://stackoverflow.com/questions/14718203/removing-particular-character-in-a-column-in-r)
+
 
 
 
