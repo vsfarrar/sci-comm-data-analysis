@@ -160,5 +160,7 @@ unpaired_long %>%
    filter(p.value <= 0.05) #filter only those that are "significant" 
 ```
 
-
+**Resources used:**
+[Non-parametric tests in R | Mining the Details blog](https://miningthedetails.com/blog/r/non-parametric-tests/)
+[Multiple Wilcoxon tests](https://stackoverflow.com/questions/46209548/how-to-do-multiple-wilcox-test-in-r)
 
