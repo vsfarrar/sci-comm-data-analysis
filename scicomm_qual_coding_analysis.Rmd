@@ -3,6 +3,7 @@ title: "SciComm Qualitative Coding Analysis"
 author: "Victoria"
 date: "4/30/2020"
 output: html_document
+ df_print: paged
 ---
 ```{r data setup}
 library(tidyverse)
@@ -18,6 +19,16 @@ lines %>%
   select(-X, -sis_login_id, -section, group, -reflection_text, -group) %>%
   mutate_all(~replace(., is.na(.), 0)) %>% #replace NA with 0 for sum purposes
  group_by( id, response_no) %>% summarise_all(funs(sum)) 
+
+#how many reflections have a theme occuring more than once (i.e. more than one sentence had a theme)?
+codes %>%
+  rowwise %>%
+  mutate(numtwos = sum(c(neutral,negative, class_metacog, gaps_knowledge, comm_metacog, contextualize, positive, negative) > 1)) %>% #for theme columns, count how many have counts > 1
+  group_by(response_no) %>%
+  summarise(n = n(), 
+            n_multiple_codes = sum(numtwos > 0)) %>% #totals by response
+  summarise_all(funs(sum)) #gives overall total
+
 ```
 
 ```{r create presence/absence df}
@@ -80,7 +91,8 @@ theme_perc_long %>%
   facet_wrap(~ response_no)
 
 #across themes: 
-theme_perc_long %>%
+assgn124<-
+  theme_perc_long %>%
   filter(response_no %in% c(1,2,4)) %>%
   filter(theme != "neutral") %>%
   ggplot(aes(x = as.factor(response_no), y = percent, fill = theme)) + 
@@ -92,11 +104,14 @@ theme_perc_long %>%
   plot_design + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
 
+ggsave("~/Desktop/assgn124.png", assgn124, height = 7, width = 7, units = "in")
 ```
+
 ```{r theme plot assgn 1 3 5}
 #theme plot for numbers 1, 3, 5 (teaching assignment)
 #across themes: 
-theme_perc_long %>%
+assgn135 <- 
+  theme_perc_long %>%
   filter(response_no %in% c(1,3,5)) %>%
   filter(theme != "neutral") %>%
   ggplot(aes(x = as.factor(response_no), y = percent, fill = theme)) + 
@@ -107,6 +122,21 @@ theme_perc_long %>%
   facet_wrap(~ theme) + 
   plot_design + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+
+
+  theme_perc_long %>%
+  filter(response_no %in% c(1,3,5)) %>%
+  filter(theme != "neutral") %>%
+  ggplot(aes(x = response_no, y = percent, color = theme, fill = theme, group = theme)) + 
+  geom_point() + 
+  geom_line()+
+  ylim(0,100)+ 
+  scale_x_continuous(breaks = c(1,3,5), labels = c("1st", "2nd", "3rd"))+ 
+  labs(x = "Time students completed teaching assignment", y = "Percent of responses where theme was present") + 
+  plot_design + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+  
+ggsave("~/Desktop/assgn124.png", assgn135, height = 7, width = 7, units = "in")
 
 ```
 
