@@ -113,7 +113,30 @@ paired_long %>%
 paired_long %>% 
   group_by(group,survey, question) %>% 
   summarise(q_answered = sum(!is.na(score))) %>%
-  pivot_wider(names_from = c(group,survey), values_from = q_answered)
+  pivot_wider(names_from = c(group,survey), values_from = q_answered) #columns have different lengths 
+
+#pseudocode
+#convert to long with pre and post as a column in each row 
+#drop na rows with NA in either of them 
+#go back to wide 
+#then iterate through questions
+
+paired_long %>%
+  group_by(group, id,question, survey) %>%
+  summarise(new_score = round(score,3)) %>% #mean should be actual score
+  pivot_wider(names_from = survey, values_from = new_score) %>%  #change format to one row per question #1450 rows
+  drop_na(post) %>%
+  drop_na(pre) %>%  #1394 rows 
+    pivot_longer(cols = post:pre, #back to long format
+               names_to = "survey", 
+               values_to = "score") %>% 
+  nest(-question, -survey) %>%  #run model on each level of question and survey
+  mutate(fit = map(data, ~ wilcox.test(score ~ group, data = ., paired = TRUE)), #wilcoxon test 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results) %>%
+  arrange(p.value) %>% #list in ascending order of p-value
+  select(-data, - fit) %>%
+   filter(p.value <= 0.05) #filter only those that are "significant"
 ```
 
 
