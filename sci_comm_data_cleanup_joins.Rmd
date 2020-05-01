@@ -9,7 +9,7 @@ library(tidyverse)
 final_surv<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_final_survey_numeric.csv",na.strings=c("","NA"))
 initial_surv<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_initial_survey.csv",na.strings=c("","NA"))
 grades<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_course_grades.csv",na.strings=c("","NA"))
-groups<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_group_assgn.csv",,na.strings=c("","NA"))
+groups<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/scicomm_group_assgn.csv",na.strings=c("","NA"))
 
 ```
 
