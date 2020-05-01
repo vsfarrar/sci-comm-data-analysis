@@ -5,6 +5,9 @@ date: "4/23/2020"
 output: html_document
 ---
 ```{r}
+library(broom)
+library(tidyverse)
+
 #import data
 disc<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/cleaned_complete_joins/scicomm_complete_data_joined.csv")
 disc<-mutate_all(disc, list(~na_if(.,"")))
@@ -17,8 +20,7 @@ options(scipen = 999)
 * Pre versus Post for Control and Treatment 
 * Post-pre Control versus Post-pre Treatment
 
-```{r}
-#Goal: to Match Natalia's figure from Excel 
+```{r create long form of paired data}
 
 #pivot to long form to be able to compare each question
 paired_long <- disc %>%
@@ -42,7 +44,7 @@ paired_long %>%
   
 ```
 
-```{r}
+```{r post-pre table}
 #table: post-pre (difference in scores) for each group, by question
 within_subj %>%
   group_by(group, question) %>%
@@ -50,17 +52,6 @@ within_subj %>%
   pivot_wider(names_from = group, values_from = avg_diff) %>% #change format for control, treatment next to each other
   rename(Control_AvgPost_Pre = Control,  #rename columns for interpretability
          Treat_AvgPost_Pre = Treatment)
-
-#table: pre and post for each group, by question 
-  #for PAIRED ONLY 
-
-within_subj %>%
-  group_by(group, question) %>%
-  summarise(avg_pre = round(mean(pre_score, na.rm = T),3),
-            avg_post = round(mean(post_score, na.rm = T),3)) %>%
-  pivot_wider(names_from = group, values_from = c(avg_pre, avg_post))  #change format for control, treatment next to each other
-
-
 ```
 
 ```{r plot differences by group}
@@ -74,6 +65,99 @@ within_subj %>%
     scale_fill_manual(values = c("blue", "orange")) + 
     theme_bw()+
     theme(axis.text.x = element_text(angle = 90))
+```
+```{r paired stats on difference scores}
+
+
+#using wilcoxon sign-rank / Maney-Whitman test 
+ within_subj %>% 
+  nest(-question) %>%  #run model on each level of question
+  mutate(fit = map(data, ~ wilcox.test(diff_score ~ group, data = ., paired = FALSE)), #wilcoxon test 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results) %>%
+  arrange(p.value) %>% #list in ascending order of p-value
+  select(-data, - fit) %>%
+   filter(p.value <= 0.05) #filter only those that are "significant" 
+ 
+#using t.tests 
+  within_subj %>% 
+  nest(-question) %>%  #run model on each level of question
+  mutate(fit = map(data, ~ t.test(diff_score ~ group, data = .)), #wilcoxon test 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results) %>%
+  arrange(p.value) %>% #list in ascending order of p-value
+  select(-data, - fit) %>%
+   filter(p.value <= 0.05) 
+```
+```{r nonparametric stats paired individuals}
+#compare pre and post for matched individuals 
+#another way of looking at difference scores - should be similar.  
+
+paired_long %>%
+  group_by(group, question, survey) %>%
+  summarise(avg_score = round(mean(score, na.rm = T),3)) %>%
+  pivot_wider(names_from = c(group,survey), values_from = avg_score) %>%  #change format to one row per question
+  select(question, Control_pre, Control_post, Treatment_pre, Treatment_post) #reorder columns for comparisons 
+
+
+paired_long %>% 
+  nest(-question, -survey) %>%  #run model on each level of question and survey
+  mutate(fit = map(data, ~ wilcox.test(score ~ group, data = ., paired = TRUE)), #wilcoxon test 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results) %>%
+  arrange(p.value) %>% #list in ascending order of p-value
+  select(-data, - fit) %>%
+   filter(p.value <= 0.05) #filter only those that are "significant" 
+
+#UNABLE TO RUN PAIRED WILCOXON TESTS BECAUSE LOTS OF NAs, leading to different lengths - see here.
+paired_long %>% 
+  group_by(group,survey, question) %>% 
+  summarise(q_answered = sum(!is.na(score))) %>%
+  pivot_wider(names_from = c(group,survey), values_from = q_answered)
+```
+
+
+### Unpaired, comparing Pre between groups and Post between groups 
+
+```{r long form of unpaired data}
+unpaired_long <- disc %>%
+  pivot_longer(cols = scientist:interested,
+               names_to = "question", 
+               values_to = "score")
+```
+
+```{r pre & post by group table}
+#table: pre and post for each group, by question 
+  #for ALL SURVEYS (even if only one included )
+
+unpaired_long %>%
+  group_by(group, question, survey) %>%
+  summarise(avg_score = round(mean(score, na.rm = T),3)) %>%
+  pivot_wider(names_from = c(group,survey), values_from = avg_score) %>%  #change format to one row per question
+  select(question, Control_pre, Treatment_pre, everything()) #reorder columns for comparisons 
+
+```
+```{r unpaired stats comparisons}
+#nonparametric wilcoxon tests 
+
+unpaired_long %>% 
+  nest(-question, -survey) %>%  #run model on each level of question and survey
+  mutate(fit = map(data, ~ wilcox.test(score ~ group, data = ., paired = FALSE)), #wilcoxon test 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results) %>%
+  arrange(p.value) %>% #list in ascending order of p-value
+  select(-data, - fit) %>%
+   filter(p.value <= 0.05) #filter only those that are "significant" 
+ 
+#parametric t-test shows similar results 
+ unpaired_long %>% 
+  nest(-question, -survey) %>%  #run model on each level of question and survey
+  mutate(fit = map(data, ~ t.test(score ~ group, data = ., paired = FALSE)), #wilcoxon test 
+         results = map(fit, glance)) %>% #broom functions
+  unnest(results) %>%
+  arrange(p.value) %>% #list in ascending order of p-value
+  select(-data, - fit) %>%
+   filter(p.value <= 0.05) #filter only those that are "significant" 
 ```
 
 
