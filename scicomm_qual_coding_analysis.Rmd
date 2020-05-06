@@ -139,6 +139,54 @@ assgn135 <-
 ggsave("~/Desktop/assgn124.png", assgn135, height = 7, width = 7, units = "in")
 
 ```
+```{r}
+library(lme4)
+library(lmerTest)
+library(nlme)
+
+#create "time" variable (what was the "time students had seen the assignment?)
+codes_binary<- codes_binary %>%
+  mutate(time = case_when(
+    response_no == 3 ~ 2, 
+    response_no == 5 ~ 3, 
+    TRUE ~ 1
+  )) %>%
+    mutate(assignment = case_when(
+    response_no == 2 ~ "tweet", 
+    response_no == 4 ~ "art", 
+    TRUE ~ "teach"
+  ))
+  
+
+#long form so that theme can be a variable
+codes_bin_long<-
+codes_binary %>%
+  pivot_longer(neutral:negative, names_to = "theme", values_to = "present") 
+
+codes_bin_long$theme<-as.factor(codes_bin_long$theme)
+codes_bin_long$theme<-relevel(codes_bin_long$theme, "neutral")
+
+teach<-codes_bin_long %>% filter(assignment == "teach")
+
+#relationship between time and theme
+m1<-glmer(present ~ theme*time +  (1|id), data=teach, family = "binomial") 
+summary(m1)
+
+#relationship between assignment and theme (first time)
+assgn<-codes_bin_long %>% filter(time == 1)
+
+m2<-glmer(present ~ theme*assignment +  (1|id), data=assgn, family = "binomial") 
+summary(m2)
+
+plot_model(m2, type = "pred", terms = c("theme", "assignment"), pred.type = "re")
+
+pr <- ggpredict(m2, c("theme", "assignment"), type = "re")
+plot(pr)
+
+pr1 <- ggpredict(m1, c("theme", "time"), type = "re")
+plot(pr1)
+```
+
 
 ### Resoures used
 [Count number of values in row using dplyr](https://stackoverflow.com/questions/37731987/count-number-of-values-in-row-using-dplyr)
