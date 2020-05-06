@@ -139,10 +139,13 @@ assgn135 <-
 ggsave("~/Desktop/assgn124.png", assgn135, height = 7, width = 7, units = "in")
 
 ```
-```{r}
+### Statistics:  Binomial GLMMs
+
+```{r setup for stats}
 library(lme4)
 library(lmerTest)
-library(nlme)
+library(sjPlot)
+library(ggeffects)
 
 #create "time" variable (what was the "time students had seen the assignment?)
 codes_binary<- codes_binary %>%
@@ -164,27 +167,57 @@ codes_binary %>%
   pivot_longer(neutral:negative, names_to = "theme", values_to = "present") 
 
 codes_bin_long$theme<-as.factor(codes_bin_long$theme)
-codes_bin_long$theme<-relevel(codes_bin_long$theme, "neutral")
+codes_bin_long$theme<-relevel(codes_bin_long$theme, "neutral") #set neutral as first level of assignment
+```
 
+```{r stats: teaching assignments }
 teach<-codes_bin_long %>% filter(assignment == "teach")
 
 #relationship between time and theme
 m1<-glmer(present ~ theme*time +  (1|id), data=teach, family = "binomial") 
 summary(m1)
 
+pr1 <- ggpredict(m1, c("theme", "time"), type = "re")
+plot(pr1)
+```
+```{r stats all assignments}
+m3<-glmer(present ~ theme*response_no +  (1|id), data=codes_bin_long, family = "binomial") 
+summary(m3)
+
+pr3 <- ggpredict(m3, c("response_no", "theme"), type = "re")
+plot(pr3)
+```
+
+
+```{r stats different assignments}
 #relationship between assignment and theme (first time)
 assgn<-codes_bin_long %>% filter(time == 1)
+
+assgn$assignment<-as.factor(assgn$assignment)
+assgn$assignment<-relevel(assgn$assignment, "teach")
 
 m2<-glmer(present ~ theme*assignment +  (1|id), data=assgn, family = "binomial") 
 summary(m2)
 
-plot_model(m2, type = "pred", terms = c("theme", "assignment"), pred.type = "re")
+pr2 <- ggpredict(m2, c("theme", "assignment"), type = "re")
+plot(pr2)
 
-pr <- ggpredict(m2, c("theme", "assignment"), type = "re")
-plot(pr)
+```
 
-pr1 <- ggpredict(m1, c("theme", "time"), type = "re")
-plot(pr1)
+```{r stats last TEACH vs other assignents}
+#does this relationship still hold when comparing the last teaching assignment to the other assignments?
+
+lastteach<-codes_bin_long %>% filter(response_no %in% c(2,4,5))
+
+lastteach$assignment<-as.factor(lastteach$assignment)
+lastteach$assignment<-relevel(lastteach$assignment, "teach") 
+
+m4<-glmer(present ~ theme*assignment +  (1|id), data=lastteach, family = "binomial") 
+summary(m4)
+
+pr4 <- ggpredict(m4, c("theme", "assignment"), type = "re")
+plot(pr4)
+
 ```
 
 
