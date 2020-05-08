@@ -89,7 +89,7 @@ within_subj %>%
   select(-data, - fit) %>%
    filter(p.value <= 0.05) 
 ```
-```{r nonparametric stats paired individuals}
+```{r nonparametric stats paired individuals, eval = FALSE}
 #compare pre and post for matched individuals 
 #another way of looking at difference scores - should be similar.  
 
@@ -138,6 +138,43 @@ paired_long %>%
   select(-data, - fit) %>%
    filter(p.value <= 0.05) #filter only those that are "significant"
 ```
+
+```{r}
+#questions requested by Natalia 
+  #does differences in science identity score or physiology identity score change with demographics?
+#within_subj diff_score 
+
+#science identity (post - pre)
+q1<-within_subj %>% filter(question == "scientist")
+
+m1<-lm(data=q1, diff_score ~ gender + urm + first_gen )
+summary(m1)
+
+#physiology identity (post-pre)
+q8<-within_subj %>% filter(question == "id_physio")
+
+m2<-lm(data=q8, diff_score ~ gender + urm + first_gen + admit_level )
+summary(m2)
+
+
+#another approach
+#post-only, treatment-only. 
+q1_unpaired <- unpaired_long %>% filter(question == "scientist") %>% filter(survey == "post", group == "Treatment")
+
+m3<-lm(data=q1_unpaired, score ~ gender + urm + first_gen )
+summary(m3) 
+#first gen was higher. 
+
+#post-only, treatment-only. 
+q8_unpaired <- unpaired_long %>% filter(question == "id_physio") %>% filter(survey == "post", group == "Treatment")
+
+
+m4<-lm(data=q8_unpaired, score ~ gender + urm + first_gen)
+summary(m4) 
+#no effect on id_physio. 
+```
+
+
 
 
 ### Unpaired, comparing Pre between groups and Post between groups 
