@@ -65,11 +65,6 @@ reflect_all <- rbind(sc.text, control_new)
 #count words in each reflection using function
 reflect_all$wordcount <- sapply(reflect_all$reflection_text, function(x) length(unlist(strsplit(as.character(x), "\\W+"))))
 
-
-  summarise(smean = mean(score, na.rm = TRUE),  #summary statistics for each Q
-            ssd = sd(score, na.rm = TRUE),
-            count = n()) %>%
-  mutate(se = ssd / sqrt(count),
          
 #graph comparing wordcounts by group 
 reflect_all %>%
@@ -82,11 +77,39 @@ reflect_all %>%
   ggplot(aes(x=as.factor(response_no), y= avg_count, fill = group, label = round(avg_count, digits = 1))) + 
     geom_bar(stat = "identity", position = position_dodge(0.9), color = "black") + 
     geom_errorbar(aes(ymax=avg_count + se,ymin= avg_count -se),position=position_dodge(0.9), width=0.7) +
+  annotate("text", x = 1, y = 115, label = "**", size = 10)+
+  annotate("text", x = 3, y = 90, label = "**", size = 10)+
+  annotate("text", x = 5, y = 60, label = "**", size = 10)+
   geom_text(vjust = -2, position = position_dodge(0.9)) + 
   ylim(0, 115) +
   scale_fill_manual(values = c("skyblue2", "grey")) + 
   labs(x = "Week of Assignment", y="Average word count of response", subtitle = "Means, bars are SEM") + 
   theme_bw()
-  #facet_wrap(~group)
-   
+```
+
+```{r ttests for wordcount}
+
+#t
+r1_teach <- reflect_all %>%
+  filter(response_no == "1")
+
+t.test(r1_teach$wordcount ~ r1_teach$group)
+wilcox.test(r1_teach$wordcount ~ r1_teach$group)
+  
+
+r3_teach <- reflect_all %>%
+  filter(response_no == "3")
+
+t.test(r3_teach$wordcount ~ r3_teach$group)
+wilcox.test(r3_teach$wordcount ~ r3_teach$group)
+
+r5_teach <- reflect_all %>%
+  filter(response_no == "5")
+
+t.test(r5_teach$wordcount ~ r5_teach$group)
+wilcox.test(r5_teach$wordcount ~ r5_teach$group)
+
+#linear model for effect of treatment & time 
+m1 <- lm(wordcount ~ group*response_no, data = reflect_all)
+summary(m1)
 ```
