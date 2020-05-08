@@ -5,10 +5,10 @@ output: html_notebook
 ```{r data setup, include=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
 
-sc.text<-read.csv(file="~/Documents/projects/scicomm_analysis_Arik/data/treatment_assignment_responses.csv")
+sc.text<-read.csv(file="~/Documents/projects/scicomm_analysis_Arik/qualitative_coding/treatment_assignment_responses.csv")
 ```
 
-```{r data manipulation, echo=FALSE}
+```{r treatment split into lines, echo=FALSE}
 #split text into lines (one line per line), but maintains the id / group / response week
 #separates lines based on the period
 sc_responses_lines  <- separate_rows(sc.text, reflection_text, sep="\\.") 
@@ -20,8 +20,44 @@ sc_responses_lines_2  <- separate_rows(sc_responses_lines_2, reflection_text, se
 sc_responses_lines3 <- sc_responses_lines_2 %>% filter(reflection_text != "") #remove the blank rows
 write.csv(sc_responses_lines3, "~/Desktop/test.csv")
 ```
+```{r control split into lines, echo=FALSE}
+#control data 
+control<-read.csv("~/Documents/projects/scicomm_analysis_Arik/qualitative_coding/control_responses_reflections_only_AD.csv")
 
-```{r word count}
+#split text into lines (one line per line), but maintains the id / group / response week
+#separates lines based on the period
+control_lines  <- separate_rows(control, response_text, sep="\\.") 
+#separate again on the exclamation and new line
+control_lines_2  <- separate_rows(control_lines, response_text, sep="!")
+control_lines_2  <- separate_rows(control_lines_2, response_text, sep="\n")
+
+#write dataframe to a file for future coding 
+control_lines3 <- control_lines_2 %>% filter(response_text != "") #remove the blank rows
+write.csv(control_lines3, "~/Desktop/test.csv")
+```
+
+
+```{r matching colnames for rbind}
+#append together treatment and control responses for word count analysis 
+
+#rename columns in control dataframe so they match the treatment dataframe
+control_new <- control %>%
+  rename( id = ID, 
+          sis_login_id = SIS.Login.ID, 
+          section = Section, 
+          group = Group.Assignment,
+          reflection_text = response_text)
+
+#delete unnecessary columns 
+control_new$X <- NULL #get rid of "X" column
+sc.text$reflection_yn<-NULL #get rid of y/n column
+
+#check that both column names match 
+colnames(sc.text) == colnames(control_new) #should all be true 
+```
+
+
+```{r}
 sc.text$wordcount <- sapply(sc.text$reflection_text, function(x) length(unlist(strsplit(as.character(x), "\\W+"))))
 
 sc.text %>%
@@ -32,5 +68,17 @@ sc.text %>%
   geom_text(vjust = -2) + 
   ylim(0, 110)
    
-  
+
+#pipe to a graph comparing wordcounts by group 
+sc.text %>%
+  group_by(group,biweekly_period) %>%
+  summarise(avg_count = mean(wordcount)) %>%
+  ggplot(aes(x=as.factor(biweekly_period), y= avg_count, fill = group, label = round(avg_count, digits = 1))) + 
+    geom_bar(stat = "identity", position = position_dodge(0.9), color = "black") + 
+  geom_text(vjust = -2, position = position_dodge(0.9)) + 
+  ylim(0, 150) +
+  labs(x = "Week of Assignment", y="Average word count of response") + 
+  theme_bw()
+  #facet_wrap(~group)
+   
 ```
