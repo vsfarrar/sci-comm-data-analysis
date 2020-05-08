@@ -61,26 +61,31 @@ reflect_all <- rbind(sc.text, control_new)
 
 
 ```{r wordcount analysis }
-sc.text$wordcount <- sapply(sc.text$reflection_text, function(x) length(unlist(strsplit(as.character(x), "\\W+"))))
 
-sc.text %>%
-  group_by(response_no) %>%
-  summarise(avg_count = mean(wordcount)) %>%
-  ggplot(aes(x=as.factor(response_no), y= avg_count, label = round(avg_count, digits = 1))) + 
-    geom_bar(stat = "identity", fill = "white", color = "black") + 
-  geom_text(vjust = -2) + 
-  ylim(0, 110)
-   
+#count words in each reflection using function
+reflect_all$wordcount <- sapply(reflect_all$reflection_text, function(x) length(unlist(strsplit(as.character(x), "\\W+"))))
 
-#pipe to a graph comparing wordcounts by group 
-sc.text %>%
-  group_by(group,biweekly_period) %>%
-  summarise(avg_count = mean(wordcount)) %>%
-  ggplot(aes(x=as.factor(biweekly_period), y= avg_count, fill = group, label = round(avg_count, digits = 1))) + 
+
+  summarise(smean = mean(score, na.rm = TRUE),  #summary statistics for each Q
+            ssd = sd(score, na.rm = TRUE),
+            count = n()) %>%
+  mutate(se = ssd / sqrt(count),
+         
+#graph comparing wordcounts by group 
+reflect_all %>%
+  drop_na(response_no) %>%
+  group_by(group,response_no) %>%
+  summarise(avg_count = mean(wordcount), 
+            sd = sd(wordcount),
+            n = n()) %>%
+  mutate(se = sd / sqrt(n)) %>%
+  ggplot(aes(x=as.factor(response_no), y= avg_count, fill = group, label = round(avg_count, digits = 1))) + 
     geom_bar(stat = "identity", position = position_dodge(0.9), color = "black") + 
+    geom_errorbar(aes(ymax=avg_count + se,ymin= avg_count -se),position=position_dodge(0.9), width=0.7) +
   geom_text(vjust = -2, position = position_dodge(0.9)) + 
-  ylim(0, 150) +
-  labs(x = "Week of Assignment", y="Average word count of response") + 
+  ylim(0, 115) +
+  scale_fill_manual(values = c("skyblue2", "grey")) + 
+  labs(x = "Week of Assignment", y="Average word count of response", subtitle = "Means, bars are SEM") + 
   theme_bw()
   #facet_wrap(~group)
    
