@@ -54,10 +54,13 @@ sc.text$reflection_yn<-NULL #get rid of y/n column
 
 #check that both column names match 
 colnames(sc.text) == colnames(control_new) #should all be true 
+
+#combine datasets 
+reflect_all <- rbind(sc.text, control_new) 
 ```
 
 
-```{r}
+```{r wordcount analysis }
 sc.text$wordcount <- sapply(sc.text$reflection_text, function(x) length(unlist(strsplit(as.character(x), "\\W+"))))
 
 sc.text %>%
