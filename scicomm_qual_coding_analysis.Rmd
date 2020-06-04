@@ -95,6 +95,32 @@ theme_perc_long <-
   pivot_longer(cols = perc_neutral:perc_negative, names_to = "theme", values_to = "percent") %>%
   mutate(theme = gsub( "perc_", "", as.character(theme))) %>% #get rid of perc_ header in theme names 
   mutate_if(is.character, as.factor) #convert back to factor 
+
+#ALL themes (across all responses)
+all_themes<- 
+  codes_binary %>%
+    group_by(group) %>%  #no more group by response no
+    summarise(n = n(),
+              perc_neutral = (sum(neutral, na.rm = T)/n)*100, 
+              perc_class_metacog = (sum(class_metacog , na.rm = T)/n)*100,
+              perc_gaps_knowledge = (sum(gaps_knowledge,  na.rm = T)/n)*100, 
+              perc_comm_metacog =  (sum(comm_metacog,  na.rm = T)/n)*100,
+              perc_contextualize = (sum(contextualize,  na.rm = T)/n)*100, 
+              perc_positive = (sum(positive,  na.rm = T)/n)*100,
+              perc_negative = (sum(negative,  na.rm = T)/n)*100) 
+
+# long form for ggplots. 
+all_themes_long <- 
+  all_themes %>%
+  select(-n) %>%
+  pivot_longer(cols = perc_neutral:perc_negative, names_to = "theme", values_to = "percent") %>%
+  mutate(theme = gsub( "perc_", "", as.character(theme))) %>% #get rid of perc_ header in theme names 
+  mutate_if(is.character, as.factor) #convert back to factor 
+
+#send to .csv for Natalia to make graphs in SAS 
+write.csv(all_themes_long,"~/Desktop/all_themes_percents_long.csv")
+write.csv(all_themes,"~/Desktop/all_themes_percents.csv")
+
 ```
 
 ```{r theme plots assgn 1 2 4 }
@@ -130,17 +156,14 @@ ggsave("~/Desktop/assgn124.png", assgn124, height = 7, width = 7, units = "in")
 #across themes: 
 assgn135 <- 
   theme_perc_long %>%
-  filter(response_no %in% c(1,3,5)) %>%
   filter(theme != "neutral") %>%
   ggplot(aes(x = as.factor(response_no), y = percent, fill = theme)) + 
   geom_col(position = position_dodge(0.9), color = "black") + 
   ylim(0,100)+ 
-  scale_x_discrete(labels = c("1st", "2nd", "3rd"))+ 
   labs(x = "Time students completed assignment", y = "Percent of responses where theme was present") + 
   facet_grid(cols = vars(theme), rows = vars(group)) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
   
-ggsave("~/Desktop/assgn124.png", assgn135, height = 7, width = 7, units = "in")
 
 ```
 ### Statistics:  Binomial GLMMs
@@ -178,6 +201,9 @@ codes_bin_long$theme<-relevel(codes_bin_long$theme, "neutral") #set neutral as f
 m_time <-glmer(present ~ theme*response_no + (1|id), data=codes_bin_long, family = "binomial")
 summary(m_time)
 
+m_theme <-glmer(present ~ theme*group + (1|id), data=codes_bin_long, family = "binomial")
+summary(m_theme)
+
 gaps <- codes_bin_long %>% filter(theme == "gaps_knowledge")
 m_gaps <-glmer(present ~ group*response_no + (1|id), data=gaps, family = "binomial")
 summary(m_gaps)
@@ -185,6 +211,10 @@ summary(m_gaps)
 class_meta<- codes_bin_long %>% filter(theme == "class_metacog")
 m_class <-glmer(present ~ group*response_no + (1|id), data=class_meta, family = "binomial")
 summary(m_class)
+
+class_meta_135<- codes_bin_long %>% filter(theme == "class_metacog") %>% filter(response_no %in% c(1,3,5))
+m_class_135 <-glmer(present ~ group*response_no + (1|id), data=class_meta_135, family = "binomial")
+summary(m_class_135)
 
 #difference responses 
 
@@ -254,12 +284,62 @@ pr4 <- ggpredict(m4, c("theme", "assignment"), type = "re")
 plot(pr4)
 
 ```
+```{r}
+library(lme4)
+
+glm1<-
+codes_bin_long %>%
+  filter( theme != "comm_metacog") %>%
+  glmer(present ~ theme*group + (1|id), data = ., family = "binomial") 
+
+summary(glm1)
+
+glm2<-
+codes_bin_long %>%
+  filter( theme != "comm_metacog") %>%
+  glm(present ~ theme*group, data = ., family = "binomial") 
+
+summary(glm2)
+```
+```{r}
+#chi-squared tests for each theme 
+
+#class metacognition 
+table2<- table(codes_binary$group, codes_binary$class_metacog)
+prop.table(table2,1)
+chisq.test(table2,correct=FALSE)
+
+#comm metacognition
+table3<- table(codes_binary$group, codes_binary$comm_metacog)
+prop.table(table3,1)
+chisq.test(table3,correct=FALSE)
+
+#gaps in knowledge
+table4<- table(codes_binary$group, codes_binary$gaps_knowledge)
+prop.table(table4,1)
+chisq.test(table4,correct=FALSE)
+
+#contextualization
+table5<- table(codes_binary$group, codes_binary$contextualize)
+prop.table(table5,1)
+chisq.test(table5,correct=FALSE)
+
+#positive
+table6<- table(codes_binary$group, codes_binary$positive)
+prop.table(table6,1)
+chisq.test(table6,correct=FALSE)
+
+#negative
+table7<- table(codes_binary$group, codes_binary$negative)
+prop.table(table7,1)
+chisq.test(table7,correct=FALSE)
+```
 
 
 ### Resoures used
 [Count number of values in row using dplyr](https://stackoverflow.com/questions/37731987/count-number-of-values-in-row-using-dplyr)
 [gsub for string split](https://stackoverflow.com/questions/14718203/removing-particular-character-in-a-column-in-r)
-
+[Chi-square in R](http://sphweb.bumc.bu.edu/otlt/MPH-Modules/PH717-QuantCore/PH717-Module8-CategoricalData/PH717-Module8-CategoricalData4.html)
 
 
 
