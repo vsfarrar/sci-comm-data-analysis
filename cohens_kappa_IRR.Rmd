@@ -1,0 +1,39 @@
+---
+title: "Cohen's Kappa for Qual Coding"
+author: "Victoria"
+date: "6/4/2020"
+output: html_document
+---
+```{r}
+#import data 
+codes<-read.csv("~/Documents/projects/scicomm_analysis_Arik/qualitative_coding/IRR_coding_calculations/AD_VF_IRR_for_R.csv")
+codes[is.na(codes)] <- 0 #change NA to 0 
+```
+
+```{r}
+library(fmsb)
+#run a kappa test for each code.
+Kappa.test(codes$ad_neutral, codes$vf_neutral)
+Kappa.test(codes$ad_comm, codes$vf_comm)
+Kappa.test(codes$ad_class, codes$vf_class)
+Kappa.test(codes$ad_gaps, codes$vf_gaps)
+Kappa.test(codes$ad_cont, codes$vf_cont) #fair agreement
+Kappa.test(codes$ad_pos, codes$vf_pos)
+Kappa.test(codes$ad_neg, codes$vf_neg) #doesn't work because one of us put none. 100% match. 
+```
+
+```{r}
+library(psych) #cannot use package psych because dependency "mnormt" not available in new R 
+cohen.kappa(table(codes$ad_neutral, codes$vf_neutral))
+```
+```{r}
+library(irr)
+kappa2(codes[,c(2,9)], "unweighted") #shows that the packages agree with their estimation. 
+```
+
+
+Resources: 
+https://rdrr.io/cran/fmsb/man/Kappatest.html
+https://stackoverflow.com/questions/47770668/warning-when-computing-cohens-kappa-with-psych
+
+
