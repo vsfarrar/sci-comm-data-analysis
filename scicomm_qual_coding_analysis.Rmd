@@ -7,6 +7,9 @@ output: html_document
 ---
 ```{r data setup}
 library(tidyverse)
+library(sjPlot)#for formatted tables 
+se <- function(x) sd(x)/sqrt(length(x)) #standard error function
+
 #import coded sentences
 lines<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/treatment_reflections_sentences_coded.csv",na.strings=c("","NA"))
 ctrl_lines<-read.csv("~/Documents/projects/scicomm_analysis_Arik/qualitative_coding/control_reflections_coded.csv", na.strings = c("", "NA"))
@@ -122,6 +125,7 @@ write.csv(all_themes_long,"~/Desktop/all_themes_percents_long.csv")
 write.csv(all_themes,"~/Desktop/all_themes_percents.csv")
 
 ```
+### Plots across assignments 
 
 ```{r theme plots assgn 1 2 4 }
 #view assignments 1, 2, 4 as bar graphs 
@@ -251,9 +255,10 @@ plot(pr1)
 
 ```{r stats all assignments}
 
-m3<-codes_bin_long %>% filter(group == "Treatment") %>%
-  glmer(present ~ theme*response_no +  (1|id), data=., family = "binomial") 
+m3<-codes_bin_long %>%
+  glmer(present ~ theme*group +  (1|id), data=., family = "binomial") 
 summary(m3)
+tab_model(m3)
 
 pr3 <- ggpredict(m3, c("response_no", "theme"), type = "re")
 plot(pr3)
@@ -280,6 +285,8 @@ codes_bin_long$assignment<-relevel(codes_bin_long$assignment, "teach")
 m2.1<- codes_bin_long%>% filter(group == "Treatment") %>%
   glmer(present ~ theme*assignment +  (1|id), data=., family = "binomial") 
 summary(m2.1)
+
+tab_model(m2.1)
 ```
 
 ```{r stats last TEACH vs other assignents}
@@ -297,7 +304,7 @@ pr4 <- ggpredict(m4, c("theme", "assignment"), type = "re")
 plot(pr4)
 
 ```
-```{r}
+```{r theme*group all responses}
 #effect of theme and group on presence across ALL RESPONSES
 
 #controlling for individual id as a random effect
@@ -322,11 +329,8 @@ exp(coef(glm2)) #odds ratios
 
 anova(glm1, glm2) #AIC for GLMM is significantly lower than that w/o control for id. 
 ```
-```{r}
-#effect of 
-```
 
-```{r}
+```{r chi-square tests}
 #chi-squared tests for each theme 
 
 #class metacognition 
@@ -359,6 +363,73 @@ table7<- table(codes_binary$group, codes_binary$negative)
 prop.table(table7,1)
 chisq.test(table7,correct=FALSE)
 ```
+```{r wordcount analysis}
+#count words in each reflection line using function
+lines_all$wordcount <- sapply(lines_all$reflection_text, function(x) length(unlist(strsplit(as.character(x), "\\W+"))))
+
+#sum up all lines per students' response
+wordcounts<-
+lines_all %>%
+  group_by(group,id, response_no) %>%
+  summarise(sum_words = sum(wordcount))
+
+#create "time" and "assignment" variable
+wordcounts<- wordcounts %>%
+  mutate(time = case_when(
+    response_no == 3 ~ 2, 
+    response_no == 5 ~ 3, 
+    TRUE ~ 1
+  )) %>%
+    mutate(assignment = case_when(
+    response_no == 2 ~ "tweet", 
+    response_no == 4 ~ "art", 
+    TRUE ~ "teach"
+  ))
+```
+
+```{r wordcount summary statistics}
+
+#save these outputs and use to send summary statistics  to Natalia 
+
+wordcounts %>%
+  group_by(group, response_no, assignment) %>%
+  summarise(avg_words = mean(sum_words),
+            se_words = se(sum_words))
+
+wordcounts %>%
+  group_by(group, assignment, time) %>%
+  summarise(avg_words = mean(sum_words))
+```
+
+```{r wordcount models }
+
+
+wordcounts$group<-relevel(wordcounts$group, "Control")
+
+m_words <- lmer(sum_words ~ group*response_no + (1|id), data = wordcounts)
+summary(m_words)
+
+anova(m_words)
+
+tab_model(m_words)
+
+m_words_treat <- wordcounts %>% filter(group == "Treatment") %>% 
+  lmer(sum_words ~ assignment + time + (1|id), data =.) #cannot do interaction because not present in all levels
+summary(m_words_treat)
+
+tab_model(m_words_treat)
+
+m_firsttime <- wordcounts  %>% filter(response_no %in% c(1,2,4)) %>%
+  lmer(sum_words ~ assignment*group + (1|id), data =.) 
+summary(m_firsttime)
+
+m_lasttime <- wordcounts %>% filter(group == "Treatment") %>% filter(response_no %in% c(5,2,4)) %>%
+  lm(sum_words ~ assignment, data =.) 
+summary(m_lasttime)
+  
+```
+
+
 
 
 ### Resoures used
