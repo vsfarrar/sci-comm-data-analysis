@@ -91,6 +91,7 @@ themes_percents<-
               perc_positive = (sum(positive,  na.rm = T)/n)*100,
               perc_negative = (sum(negative,  na.rm = T)/n)*100) 
 
+
 #theme percents in long form for ggplots. 
 theme_perc_long <- 
   themes_percents %>%
@@ -427,6 +428,27 @@ m_lasttime <- wordcounts %>% filter(group == "Treatment") %>% filter(response_no
   lm(sum_words ~ assignment, data =.) 
 summary(m_lasttime)
   
+```
+```{r class metacog }
+#CLASS METACOGNITION with GAPS in KNOWLEDGE as a subset 
+
+#what is the split of responses with gaps and knowledge and class metacognition?
+codes%>%
+  mutate(gaps = ifelse(gaps_knowledge == 0, "n", "y")) %>%
+  mutate(class_meta = ifelse(class_metacog == 0, "n", "y")) %>%
+  group_by(group, gaps, class_meta) %>%
+  summarise(n_responses = n())
+  
+#for responese that have no gaps in knowledge, is metacognition sig differently?
+  no_gaps <- codes%>%
+  mutate(gaps = ifelse(gaps_knowledge == 0, "n", "y")) %>%
+  mutate(class_meta = ifelse(class_metacog == 0, "n", "y")) %>%
+  filter(gaps == "n")
+  
+#chi-sq data 
+chisq.test(no_gaps$class_meta, gaps_test$group)
+chisq.test(gaps_test$gaps, gaps_test$group)
+
 ```
 
 

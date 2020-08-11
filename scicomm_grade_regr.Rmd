@@ -1,0 +1,196 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Natalia's request 
+Look at the regression of exam scores within treatment and control groups. 
+```{r setup}
+library(tidyverse)
+#import data
+disc<-read.csv("~/Documents/projects/scicomm_analysis_Arik/data/cleaned_complete_joins/scicomm_complete_data_joined.csv")
+disc<-mutate_all(disc, list(~na_if(.,"")))
+```
+
+```{r}
+convert_grades <- function(x) {
+  A <- factor(x, levels=c("A+", "A", "A-",
+                          "B+", "B", "B-",
+                          "C+", "C", "C-",
+                          "D+", "D", "D-", "F"))
+  values <- c(4, 4, 3.7, 
+              3.3, 3, 2.7,
+              2.3, 2, 1.7,
+              1.3, 1, 0.7, 0) #this function uses the UC Davis A+ = 4.0
+  values[A]
+}
+
+#create a numeric grade data 
+disc$grade_num <- convert_grades(disc$letter_grade)
+disc$grade_num
+
+#sanity check that all have > 3 responses
+disc %>%
+group_by(response_count) %>%
+  tally()
+
+```
+```{r}
+#basic linear models on raw course and midterm grades 
+
+#overall grade
+m_coursegrade <- lm(grade_num ~ group + gpa_prior, data = disc)
+summary(m1)
+
+#exams: 
+m_exam1 <- lm(mt1 ~ group + gpa_prior, data = disc)
+summary(m_exam1)
+
+m_exam2 <- lm(mt2 ~ group + gpa_prior, data = disc)
+summary(m_exam2)
+
+m_exam3 <- lm(mt3 ~ group + gpa_prior, data = disc)
+summary(m_exam3)
+
+#final exam 
+m_final <- lm(grade_final ~ group + gpa_prior, data = disc)
+summary(m_final)
+```
+```{r}
+disc %>%
+  select(group, gpa_prior, final:grade_final,grade_num) %>% #select grade columns
+  pivot_longer(-group, names_to = "grade_type", values_to = "score") %>% #pivot longer
+    group_by(grade_type) %>%
+    group_map(~ broom::tidy(lm( score ~ group, data = .x))) 
+```
+
+
+```{r}
+#recreate plot 1
+
+#get z-scores 
+#z-score: subtract the mean from the raw score and divide that answer by the standard deviation
+disc %>%
+  #calculate final course z-scores
+  mutate(zscore_course_grade = (grade_final - mean(grade_final))/sd(grade_final)) %>%
+  group_by(group) %>%
+  ggplot(aes(x = group, y = zscore_course_grade, fill = group)) + 
+    geom_bar(stat = "summary", fun.y = "mean", color = "black") +  
+    stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.2) + #error bars using stat summary!
+    geom_hline(yintercept = 0, alpha = 0.7) +
+    #geom_signif(comparisons = list(c("Control", "Treatment")), map_signif_level = TRUE, y_position = 0.17) + 
+    scale_fill_manual(values = c("#cccccc", "#35A1FF")) + 
+    labs(x = NULL, y = "Course grade (z-score)", title = "Sci-Comm intervention effect on course grades") +
+    theme_classic(base_size = 14) + 
+    theme(legend.position = "none")
+```
+
+
+```{r}
+#model for above
+  m1 <-
+disc %>%
+  #calculate final course z-scores
+  mutate(zscore_course_grade = (grade_final - mean(grade_final))/sd(grade_final), 
+         zscore_letter_grade = (grade_num - mean(grade_num))/sd(grade_num)) %>%
+  lm(zscore_course_grade ~ group + gpa_prior, data = .)
+  
+```
+
+```{r}
+#recreate plot 2 
+
+#first with letter grades
+disc %>%
+  filter(gpa_prior > 0) %>%
+ggplot(aes(x = gpa_prior, y = grade_num, fill = group, group = group)) + 
+  geom_point(color = "black", pch = 21)+
+  geom_smooth(aes(color = group, linetype = group), method = "lm",se = FALSE ) + #se false = no CI
+  scale_fill_manual(values = c("#cccccc", "#35A1FF")) + 
+  scale_color_manual(values = c("#cccccc", "#35A1FF")) + 
+  labs(x = "Prior GPA", y = "Course Letter Grade") + 
+  theme_classic() + 
+  theme(legend.position = "none")
+
+#2) Raw course grades as z-scores
+disc %>%
+  filter(gpa_prior > 0) %>%
+  mutate(zscore_course_grade = (grade_final - mean(grade_final))/sd(grade_final)) %>%
+ggplot(aes(x = gpa_prior, y = zscore_course_grade, fill = group, group = group)) + 
+  geom_point(color = "black", pch = 21)+
+  geom_smooth(aes(color = group, linetype = group), method = "lm",se = FALSE ) + #se false = no CI
+  scale_fill_manual(values = c("#cccccc", "#35A1FF")) + 
+  scale_color_manual(values = c("#cccccc", "#35A1FF")) + 
+  labs(x = "Prior GPA", y = "Course Final Grade (Z-Score) ") + 
+  theme_classic() + 
+  theme(legend.position = "none")
+
+
+```
+```{r}
+#model for above
+  m1 <-
+disc %>%
+  #calculate final course z-scores
+  mutate(zscore_course_grade = (grade_final - mean(grade_final))/sd(grade_final), 
+         zscore_letter_grade = (grade_num - mean(grade_num))/sd(grade_num)) %>%
+  lm(zscore_course_grade ~ group + gpa_prior, data = .)
+
+summary(m1)
+
+#export pretty table of regression coefficients
+library(sjPlot)
+tab_model(m1, show.se = TRUE)
+
+```
+```{r export summary statistics}
+#create a dataset with just the grades / scores of interest 
+disc_z <- 
+disc %>%
+  #calculate final course z-scores
+  select(group, gpa_prior, final:grade_final,grade_num) %>% #select grade columns
+  mutate(zscore_course_grade = (grade_final - mean(grade_final))/sd(grade_final), 
+         zscore_letter_grade = (grade_num - mean(grade_num))/sd(grade_num))  %>%
+  mutate(treatment_yn = ifelse(group == "Treatment", 1, 0))
+
+#create separate dataframes for separate summary statistics
+treatment <- disc_z %>%
+  filter(group == "Treatment")
+
+control <- disc_z %>%
+  filter(group == "Control")
+
+#basic summary statistics table of grades 
+library(stargazer)
+stargazer(control, treatment, title="Descriptive statistics", digits=2, type = "html", out="~/Desktop/table1.doc")
+#this will output to a word doc. 
+
+```
+
+```{r rank sum test on score}
+##rank_sum test comparing the two (regardless of prior gpa)
+
+#INCORRECT: Wilcoxon rank-sum test
+# wilcox.test(disc_z$zscore_course_grade, disc_z$treatment_yn) 
+# wilcox.test(disc_z$grade_final, disc_z$treatment_yn)
+# t.test(disc_z$grade_final, disc_z$treatment_yn)
+
+
+#CORRECT WILCOX TEST FORMULA STRUCTURE 
+wilcox.test(treatment$grade_final, control$grade_final) #comma compares the two vectors
+wilcox.test(disc_z$grade_final ~ disc_z$group) #~ sorts the vector by the other variable
+
+#boxplot with points 
+disc_z %>%
+  group_by(group) %>%
+  ggplot(aes(x = group, y = grade_final, fill =group)) + 
+  geom_point(position = position_jitterdodge()) + 
+  geom_boxplot(alpha =0.5)
+
+#t-test also not significant
+t.test(disc_z$zscore_course_grade ~ disc_z$treatment_yn) 
+```
+
+
+
+
